@@ -9,14 +9,14 @@
     <PackageTags>Mediator, Mediador, CQRS, Command, Query, Notification, Abstractions, Kitpymes</PackageTags>
   </PropertyGroup>
 
-  <!-- Los contratos no usan ASP.NET Core. Ojo: Results 1.1.1 lo trae igualmente (por Shared), así que quien referencie Abstractions lo recibe. -->
+  <!-- Los contratos no usan ASP.NET Core. Results 1.2.0 tampoco lo trae; pack-check lo comprueba en un proyecto consumidor. -->
   <ItemGroup>
     <FrameworkReference Remove="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- PrivateAssets="none": el analizador KPY0003 de Results tiene que llegar también a quien sólo referencia el mediador. -->
-    <PackageReference Include="Kitpymes.Core.Results" Version="1.1.1" PrivateAssets="none" />
+    <PackageReference Include="Kitpymes.Core.Results" Version="1.2.0" PrivateAssets="none" />
   </ItemGroup>
 
 </Project>

@@ -107,6 +107,22 @@ jobs:
           if grep 'id="Kitpymes.Core.Results"' abstractions.nuspec | grep -q 'Analyzers'; then echo "::error::Abstractions excluye los analizadores de Results: KPY0003 no llegaría."; exit 1; fi
           unzip -p artifacts/Kitpymes.Core.Mediator.[0-9]*.nupkg '*.nuspec' | tee mediator.nuspec
           if grep 'id="Kitpymes.Core.Mediator.Abstractions"' mediator.nuspec | grep -q 'Analyzers'; then echo "::error::Mediator excluye los analizadores de Abstractions: KPY0003 no llegaría."; exit 1; fi
+          # El dominio referencia Abstractions y no puede depender de ASP.NET Core (architecture.md).
+          for f in abstractions.nuspec mediator.nuspec; do
+            if grep -q -i 'frameworkReference' $f; then echo "::error::$f lleva frameworkReferences."; exit 1; fi
+            if grep -q 'id="Kitpymes.Core.Shared"' $f; then echo "::error::$f depende de Kitpymes.Core.Shared."; exit 1; fi
+          done
+          # Y tampoco a través de las dependencias: un proyecto que sólo referencia los paquetes
+          # no debe recibir Microsoft.AspNetCore.App ni Kitpymes.Core.Shared al restaurar.
+          mkdir -p /tmp/consumidor && cd /tmp/consumidor
+          dotnet new classlib -f net10.0 -o . --force > /dev/null
+          ver=$(grep -oP '(?<=<Version>)[^<]+' "$GITHUB_WORKSPACE/docs/props/Pack.Build.props")
+          for id in Kitpymes.Core.Mediator.Abstractions Kitpymes.Core.Mediator; do
+            dotnet add package $id --version "$ver" --source "$GITHUB_WORKSPACE/artifacts" --source https://api.nuget.org/v3/index.json
+          done
+          if grep -q 'Microsoft.AspNetCore.App' obj/project.assets.json; then echo "::error::Quien referencia el mediador recibe ASP.NET Core."; exit 1; fi
+          if grep -q '"Kitpymes.Core.Shared/' obj/project.assets.json; then echo "::error::Quien referencia el mediador recibe Kitpymes.Core.Shared."; exit 1; fi
+          echo "Sin ASP.NET Core ni Shared en el consumidor."
 
   # En cada rama, tests de mutación con Stryker.NET: mide si los tests detectan fallos metidos
   # a propósito. Un mutante que sobrevive es un test que falta. Para la pipeline por debajo del 80 %.
