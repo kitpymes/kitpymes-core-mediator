@@ -48,7 +48,6 @@ internal sealed class Mediator : ISender, IPublisher
 
         return Pipeline.RunAsync(
             type,
-            null,
             _logger,
             () => Wrappers<TResult>.Get(typeof(CommandWrapper<,>), type).HandleAsync(command, _services, cancellationToken),
             cancellationToken);
@@ -64,7 +63,6 @@ internal sealed class Mediator : ISender, IPublisher
 
         return Pipeline.RunAsync(
             type,
-            null,
             _logger,
             () => Wrappers<TResult>.Get(typeof(QueryWrapper<,>), type).HandleAsync(query, _services, cancellationToken),
             cancellationToken);
@@ -79,7 +77,6 @@ internal sealed class Mediator : ISender, IPublisher
 
         return Pipeline.RunAsync(
             type,
-            null,
             _logger,
             () => NotificationWrappers
                 .GetOrAdd(type, t => Create<NotificationWrapper>(typeof(NotificationWrapper<>).MakeGenericType(t)))
