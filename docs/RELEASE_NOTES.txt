@@ -1,3 +1,8 @@
+# v.1.0.1
+- Envío y publicación más rápidos y con menos memoria, sin cambiar la API ni el comportamiento: sin lambda por llamada y, si el manejador ya ha terminado, se devuelve su misma tarea en vez de crear otra.
+- Medido con el benchmark de la pipeline (máquina de GitHub, con ruido), sin comportamientos: enviar pasa de 154 a 88 ns y de 344 a 160 B; publicar asigna 256 B.
+- Los analizadores de Microsoft.VisualStudio.Threading se ejecutan al compilar el mediador (antes no) y VSTHRD110 es error. No afecta a quien usa los paquetes.
+
 # v.1.0.0
 - Primera versión. Dos paquetes con la misma versión: Kitpymes.Core.Mediator.Abstractions (contratos) y Kitpymes.Core.Mediator (implementación).
 - Comandos (ICommand<TResult>) y consultas (IQuery<TResult>) separados, con TResult limitado a Result o Result<T> de Kitpymes.Core.Results 1.2.0.

@@ -5,7 +5,7 @@
   <Choose>
     <When Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
       <PropertyGroup>
-        <Version>1.0.0</Version>
+        <Version>1.0.1</Version>
         <ApplicationIcon>$(KitpymesRoot)docs\images\logo.ico</ApplicationIcon>
         <PackageId>$(AssemblyName)</PackageId>
         <Authors>Kitpymes, Sebastian R Ferrari</Authors>
@@ -20,8 +20,9 @@
         <PackageReleaseNotes>https://github.com/kitpymes/kitpymes-core-mediator/blob/master/docs/RELEASE_NOTES.txt</PackageReleaseNotes>
         <RepositoryUrl>https://github.com/kitpymes/kitpymes-core-mediator</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
-        <!-- Al empaquetar, valida el paquete. Desde la 1.0.1, añadir PackageValidationBaselineVersion con la última publicada. -->
+        <!-- Al empaquetar, valida el paquete contra la última versión publicada: falla si se rompe la API. -->
         <EnablePackageValidation>true</EnablePackageValidation>
+        <PackageValidationBaselineVersion>1.0.0</PackageValidationBaselineVersion>
         <!-- Título, descripción y etiquetas van en el csproj de cada paquete. -->
       </PropertyGroup>
 
