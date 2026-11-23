@@ -119,6 +119,17 @@ jobs:
       - name: Probar el chequeo de dependencias
         run: bash .github/scripts/test-check-dependencias.sh
 
+      # La validación de paquete no dice nada cuando pasa: se comprueba que se ha descargado la versión
+      # de referencia de los dos paquetes, que sólo se descarga para compararla.
+      - name: La validación de paquete se ha ejecutado contra la versión de referencia
+        run: |
+          base=$(grep -oP '(?<=<PackageValidationBaselineVersion>)[^<]+' docs/props/Pack.Build.props || true)
+          if [ -z "$base" ]; then echo "Sin versión de referencia (primera versión): no hay con qué comparar."; exit 0; fi
+          for id in kitpymes.core.mediator kitpymes.core.mediator.abstractions; do
+            test -d ~/.nuget/packages/$id/$base || { echo "::error::No se ha descargado $id $base: la validación de paquete no se ha ejecutado."; exit 1; }
+          done
+          echo "Comparados con la $base."
+
       - name: Comprobar el contenido del paquete
         run: |
           ls artifacts
