@@ -99,13 +99,23 @@ internal sealed class Mediator : ISender, IPublisher
 
         var type = notification.GetType();
 
-        return Pipeline.RunAsync(
-            type,
-            _logger,
-            () => NotificationWrappers
-                .GetOrAdd(type, t => Create<NotificationWrapper>(typeof(NotificationWrapper<>).MakeGenericType(t)))
-                .PublishAsync(notification, _services, _logger, cancellationToken),
-            cancellationToken);
+        Task<Result>? task = null;
+        Exception? error = null;
+
+        try
+        {
+            task = NotificationWrappers
+                .GetOrAdd(type, static t => Create<NotificationWrapper>(typeof(NotificationWrapper<>).MakeGenericType(t)))
+                .PublishAsync(notification, _services, _logger, cancellationToken);
+        }
+#pragma warning disable CA1031 // Se relanza dentro de Pipeline.CompleteAsync, con la captura común.
+        catch (Exception exception)
+#pragma warning restore CA1031
+        {
+            error = exception;
+        }
+
+        return Pipeline.CompleteAsync(task, error, type, _logger, cancellationToken);
     }
 
     private static T Create<T>(Type type)
