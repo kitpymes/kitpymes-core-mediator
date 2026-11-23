@@ -106,6 +106,7 @@ jobs:
           if grep -q 'id="Kitpymes.Core.Mediator"' abstractions.nuspec; then echo "::error::Abstractions no puede depender de la implementación."; exit 1; fi
           if grep 'id="Kitpymes.Core.Results"' abstractions.nuspec | grep -q 'Analyzers'; then echo "::error::Abstractions excluye los analizadores de Results: KPY0003 no llegaría."; exit 1; fi
           unzip -p artifacts/Kitpymes.Core.Mediator.[0-9]*.nupkg '*.nuspec' | tee mediator.nuspec
+          if grep 'id="Kitpymes.Core.Mediator.Abstractions"' mediator.nuspec | grep -q 'Analyzers'; then echo "::error::Mediator excluye los analizadores de Abstractions: KPY0003 no llegaría."; exit 1; fi
 
   # En cada rama, tests de mutación con Stryker.NET: mide si los tests detectan fallos metidos
   # a propósito. Un mutante que sobrevive es un test que falta. Para la pipeline por debajo del 80 %.

@@ -15,7 +15,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(KitpymesRoot)Kitpymes.Core.Mediator.Abstractions\Kitpymes.Core.Mediator.Abstractions.csproj" />
+    <!-- PrivateAssets="none": el analizador KPY0003 de Results llega a través de Abstractions. -->
+    <ProjectReference Include="$(KitpymesRoot)Kitpymes.Core.Mediator.Abstractions\Kitpymes.Core.Mediator.Abstractions.csproj" PrivateAssets="none" />
   </ItemGroup>
 
   <ItemGroup>
