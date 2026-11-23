@@ -35,7 +35,7 @@ internal abstract class RequestWrapper<TResult>
     /// Encadena los comportamientos alrededor del manejador: los generales por fuera y los específicos por dentro,
     /// cada grupo en orden de registro.
     /// </summary>
-    /// <typeparam name="TRequest">Petición.</typeparam>
+    /// <typeparam name="TRequest">Tipo de la petición.</typeparam>
     /// <param name="request">Petición.</param>
     /// <param name="handler">Manejador.</param>
     /// <param name="specific">Comportamientos de comando o de consulta.</param>
