@@ -1,6 +1,6 @@
 # v.1.0.0
 - Primera versión. Dos paquetes con la misma versión: Kitpymes.Core.Mediator.Abstractions (contratos) y Kitpymes.Core.Mediator (implementación).
-- Comandos (ICommand<TResult>) y consultas (IQuery<TResult>) separados, con TResult limitado a Result o Result<T> de Kitpymes.Core.Results 1.1.1.
+- Comandos (ICommand<TResult>) y consultas (IQuery<TResult>) separados, con TResult limitado a Result o Result<T> de Kitpymes.Core.Results 1.2.0.
 - ISender (SendAsync) e IPublisher (PublishAsync), sin una interfaz que una las dos. Registrados con ámbito (scoped).
 - Comportamientos: IPipelineBehavior (todo), ICommandBehavior (sólo comandos) e IQueryBehavior (sólo consultas). Orden: generales por fuera, específicos por dentro.
 - Captura de lo inesperado, siempre la primera: registra el tipo de la petición y la excepción completa, nunca el contenido, y devuelve un Result de error Core.Unexpected. La cancelación pedida por quien llama se relanza.
@@ -10,4 +10,4 @@
 - La validación y la comprobación al arrancar quedan activas si cualquier llamada a LoadMediator las pide.
 - El analizador KPY0003 de Results llega con el paquete.
 - No compatible con trimming ni NativeAOT.
-- Trae ASP.NET Core a través de Kitpymes.Core.Results 1.1.1 (por Kitpymes.Core.Shared), aunque el mediador no lo usa.
+- Sin ASP.NET Core ni Kitpymes.Core.Shared, tampoco a través de sus dependencias: el dominio puede referenciar Abstractions.

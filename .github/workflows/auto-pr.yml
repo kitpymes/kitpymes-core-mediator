@@ -7,7 +7,7 @@ name: auto-pr
 # and approve pull requests".
 on:
   push:
-    branches-ignore: [master]
+    branches-ignore: [master, 'exp/**']
 
 permissions:
   contents: read
