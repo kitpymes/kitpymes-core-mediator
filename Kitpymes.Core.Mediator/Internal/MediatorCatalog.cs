@@ -50,6 +50,16 @@ internal sealed class MediatorCatalog : IMediatorCatalog
     public bool RequireValidation { get; set; } = true;
 
     /// <summary>
+    /// Nombre legible de un tipo, con sus argumentos genéricos.
+    /// </summary>
+    /// <param name="type">Tipo.</param>
+    /// <returns>Nombre.</returns>
+    public static string Name(Type type)
+        => type.IsGenericType
+            ? $"{type.Name.Substring(0, type.Name.IndexOf('`', StringComparison.Ordinal))}<{string.Join(", ", type.GetGenericArguments().Select(Name))}>"
+            : type.Name;
+
+    /// <summary>
     /// Agrega un ensamblado si no estaba.
     /// </summary>
     /// <param name="assembly">Ensamblado.</param>
@@ -126,14 +136,4 @@ internal sealed class MediatorCatalog : IMediatorCatalog
             }
         }
     }
-
-    /// <summary>
-    /// Nombre legible de un tipo, con sus argumentos genéricos.
-    /// </summary>
-    /// <param name="type">Tipo.</param>
-    /// <returns>Nombre.</returns>
-    public static string Name(Type type)
-        => type.IsGenericType
-            ? $"{type.Name[..type.Name.IndexOf('`', StringComparison.Ordinal)]}<{string.Join(", ", type.GetGenericArguments().Select(Name))}>"
-            : type.Name;
 }

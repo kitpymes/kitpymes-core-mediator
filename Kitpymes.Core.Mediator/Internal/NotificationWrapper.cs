@@ -31,34 +31,3 @@ internal abstract class NotificationWrapper
     /// <returns>Resultado.</returns>
     public abstract Task<Result> PublishAsync(INotification notification, IServiceProvider services, ILogger logger, CancellationToken cancellationToken);
 }
-
-/// <summary>
-/// Envoltorio de una notificación concreta: sus manejadores uno detrás de otro, en orden alfabético de su nombre
-/// completo, parando en el primer fallo.
-/// </summary>
-/// <typeparam name="TNotification">Notificación.</typeparam>
-internal sealed class NotificationWrapper<TNotification> : NotificationWrapper
-    where TNotification : INotification
-{
-    /// <inheritdoc/>
-    public override async Task<Result> PublishAsync(INotification notification, IServiceProvider services, ILogger logger, CancellationToken cancellationToken)
-    {
-        var typed = (TNotification)notification;
-
-        var handlers = services.GetServices<INotificationHandler<TNotification>>()
-            .OrderBy(x => x.GetType().FullName, StringComparer.Ordinal)
-            .ToArray();
-
-        foreach (var handler in handlers)
-        {
-            var result = await Pipeline.RunAsync(typeof(TNotification), handler.GetType(), logger, () => handler.HandleAsync(typed, cancellationToken), cancellationToken).ConfigureAwait(false);
-
-            if (result.IsFailure)
-            {
-                return result;
-            }
-        }
-
-        return Result.Success();
-    }
-}

@@ -19,7 +19,7 @@ public interface ISender
     /// <summary>
     /// Envía un comando. Nunca lanza por un fallo del manejador: lo inesperado vuelve como <see cref="Result"/> de error.
     /// </summary>
-    /// <typeparam name="TResult">Resultado.</typeparam>
+    /// <typeparam name="TResult">Tipo del resultado: <see cref="Result"/> o <see cref="Result{T}"/>.</typeparam>
     /// <param name="command">Comando.</param>
     /// <param name="cancellationToken">Cancelación.</param>
     /// <returns>Resultado.</returns>
@@ -29,7 +29,7 @@ public interface ISender
     /// <summary>
     /// Envía una consulta. Nunca lanza por un fallo del manejador: lo inesperado vuelve como <see cref="Result"/> de error.
     /// </summary>
-    /// <typeparam name="TResult">Resultado.</typeparam>
+    /// <typeparam name="TResult">Tipo del resultado: <see cref="Result"/> o <see cref="Result{T}"/>.</typeparam>
     /// <param name="query">Consulta.</param>
     /// <param name="cancellationToken">Cancelación.</param>
     /// <returns>Resultado.</returns>

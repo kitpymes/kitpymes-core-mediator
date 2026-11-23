@@ -13,7 +13,7 @@ using Kitpymes.Core.Results;
 /// <summary>
 /// Siguiente paso de la tubería: otro comportamiento o el manejador.
 /// </summary>
-/// <typeparam name="TResult">Resultado.</typeparam>
-/// <returns>Resultado.</returns>
+/// <typeparam name="TResult">Tipo del resultado.</typeparam>
+/// <returns>El resultado del siguiente paso.</returns>
 public delegate Task<TResult> NextHandler<TResult>()
     where TResult : Result;
