@@ -3,6 +3,9 @@
 <Project>
   <PropertyGroup>
     <IsTestsProject>$(MSBuildProjectName.Contains('Tests'))</IsTestsProject>
+    <!-- Tarea descartada sin await en un método síncrono: error siempre, con cualquier configuración
+         y aunque se quiten los avisos como errores. -->
+    <WarningsAsErrors>$(WarningsAsErrors);VSTHRD110</WarningsAsErrors>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <!--
@@ -34,8 +37,6 @@
       <PropertyGroup>
         <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-        <!-- Tarea descartada sin await en un método síncrono: error aunque se quiten los avisos como errores. -->
-        <WarningsAsErrors>$(WarningsAsErrors);VSTHRD110</WarningsAsErrors>
         <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1900;NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
       </PropertyGroup>
     </When>
