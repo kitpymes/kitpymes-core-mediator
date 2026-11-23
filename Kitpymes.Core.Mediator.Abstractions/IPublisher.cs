@@ -21,7 +21,8 @@ public interface IPublisher
     /// </summary>
     /// <remarks>
     /// Sólo se ejecutan los manejadores del tipo exacto de la notificación: publicar un evento derivado no ejecuta los
-    /// manejadores de su clase base. Los manejadores van en orden alfabético de su nombre completo.
+    /// manejadores de su clase base. Los manejadores van en orden de registro (LoadMediator los registra en orden
+    /// alfabético de su nombre completo dentro de cada ensamblado).
     /// </remarks>
     /// <param name="notification">Notificación.</param>
     /// <param name="cancellationToken">Cancelación.</param>

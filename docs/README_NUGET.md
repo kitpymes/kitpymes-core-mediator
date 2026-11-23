@@ -65,7 +65,7 @@ var result = await _sender.SendAsync(new CreateUserCommand(email), cancellationT
 
 ## Notificaciones
 
-`PublishAsync` ejecuta los manejadores uno detrás de otro, en orden alfabético de su nombre completo, y **para en el primero que falla**, devolviendo ese error. Sólo se ejecutan los manejadores del tipo exacto: publicar un evento derivado no ejecuta los de su clase base.
+`PublishAsync` ejecuta los manejadores uno detrás de otro, en orden de registro (`LoadMediator` los registra en orden alfabético de su nombre completo dentro de cada ensamblado), y **para en el primero que falla**, devolviendo ese error. Sólo se ejecutan los manejadores del tipo exacto: publicar un evento derivado no ejecuta los de su clase base.
 
 ## Lo que no hace (a propósito)
 

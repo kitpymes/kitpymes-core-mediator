@@ -8,6 +8,7 @@
 namespace Kitpymes.Core.Mediator.Internal;
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,12 +30,33 @@ internal sealed class CommandWrapper<TCommand, TResult> : RequestWrapper<TResult
     {
         var command = (TCommand)request;
         var handler = services.GetRequiredService<ICommandHandler<TCommand, TResult>>();
+        var general = ToArray(services.GetServices<IPipelineBehavior<TCommand, TResult>>());
+        var specific = ToArray(services.GetServices<ICommandBehavior<TCommand, TResult>>());
 
-        return RunAsync(
-            command,
-            () => handler.HandleAsync(command, cancellationToken),
-            services.GetServices<ICommandBehavior<TCommand, TResult>>().Select(b => (Func<TCommand, NextHandler<TResult>, CancellationToken, Task<TResult>>)b.HandleAsync).ToArray(),
-            services.GetServices<IPipelineBehavior<TCommand, TResult>>().ToArray(),
-            cancellationToken);
+        if (general.Length == 0 && specific.Length == 0)
+        {
+            return handler.HandleAsync(command, cancellationToken);
+        }
+
+        NextHandler<TResult> next = () => handler.HandleAsync(command, cancellationToken);
+
+        for (var i = specific.Length - 1; i >= 0; i--)
+        {
+            var behavior = specific[i];
+            var inner = next;
+            next = () => behavior.HandleAsync(command, inner, cancellationToken);
+        }
+
+        for (var i = general.Length - 1; i >= 0; i--)
+        {
+            var behavior = general[i];
+            var inner = next;
+            next = () => behavior.HandleAsync(command, inner, cancellationToken);
+        }
+
+        return next();
     }
+
+    // MS DI devuelve un array: se evita copiarlo.
+    private static T[] ToArray<T>(IEnumerable<T> items) => items as T[] ?? items.ToArray();
 }

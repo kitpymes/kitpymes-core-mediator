@@ -8,6 +8,7 @@
 namespace Kitpymes.Core.Mediator.Internal;
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,12 +30,33 @@ internal sealed class QueryWrapper<TQuery, TResult> : RequestWrapper<TResult>
     {
         var query = (TQuery)request;
         var handler = services.GetRequiredService<IQueryHandler<TQuery, TResult>>();
+        var general = ToArray(services.GetServices<IPipelineBehavior<TQuery, TResult>>());
+        var specific = ToArray(services.GetServices<IQueryBehavior<TQuery, TResult>>());
 
-        return RunAsync(
-            query,
-            () => handler.HandleAsync(query, cancellationToken),
-            services.GetServices<IQueryBehavior<TQuery, TResult>>().Select(b => (Func<TQuery, NextHandler<TResult>, CancellationToken, Task<TResult>>)b.HandleAsync).ToArray(),
-            services.GetServices<IPipelineBehavior<TQuery, TResult>>().ToArray(),
-            cancellationToken);
+        if (general.Length == 0 && specific.Length == 0)
+        {
+            return handler.HandleAsync(query, cancellationToken);
+        }
+
+        NextHandler<TResult> next = () => handler.HandleAsync(query, cancellationToken);
+
+        for (var i = specific.Length - 1; i >= 0; i--)
+        {
+            var behavior = specific[i];
+            var inner = next;
+            next = () => behavior.HandleAsync(query, inner, cancellationToken);
+        }
+
+        for (var i = general.Length - 1; i >= 0; i--)
+        {
+            var behavior = general[i];
+            var inner = next;
+            next = () => behavior.HandleAsync(query, inner, cancellationToken);
+        }
+
+        return next();
     }
+
+    // MS DI devuelve un array: se evita copiarlo.
+    private static T[] ToArray<T>(IEnumerable<T> items) => items as T[] ?? items.ToArray();
 }
