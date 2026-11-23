@@ -1,0 +1,10 @@
+# v.1.0.0
+- Primera versión. Dos paquetes con la misma versión: Kitpymes.Core.Mediator.Abstractions (contratos) y Kitpymes.Core.Mediator (implementación).
+- Comandos (ICommand<TResult>) y consultas (IQuery<TResult>) separados, con TResult limitado a Result o Result<T> de Kitpymes.Core.Results 1.1.1.
+- ISender (SendAsync) e IPublisher (PublishAsync), sin una interfaz que una las dos. Registrados con ámbito (scoped).
+- Comportamientos: IPipelineBehavior (todo), ICommandBehavior (sólo comandos) e IQueryBehavior (sólo consultas). Orden: generales por fuera, específicos por dentro.
+- Captura de lo inesperado, siempre la primera: registra el tipo de la petición y la excepción completa, nunca el contenido, y devuelve un Result de error Core.Unexpected. La cancelación pedida por quien llama se relanza.
+- Notificaciones en secuencia, en orden alfabético del manejador, parando en el primer fallo.
+- LoadMediator(o => o.WithAssemblies(...).WithValidation(...).WithStartupVerification(...)) y LoadMediator(MediatorSettings).
+- MediatorVerifier.Verify(provider): comprueba la configuración. Se ejecuta al arrancar el host y en los tests de arquitectura. IStartupCheck e IValidationStartupCheck para añadir comprobaciones.
+- No compatible con trimming ni NativeAOT.
