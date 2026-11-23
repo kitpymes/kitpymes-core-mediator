@@ -95,6 +95,11 @@ jobs:
       - name: Empaquetar (sin publicar)
         run: dotnet pack Solution.sln -c Release -o artifacts
 
+      # Primero se prueba el propio chequeo de dependencias con ficheros falsos: si deja pasar
+      # un nuspec con frameworkReferences o con Shared, no sirve y la pipeline se para.
+      - name: Probar el chequeo de dependencias
+        run: bash .github/scripts/test-check-dependencias.sh
+
       - name: Comprobar el contenido del paquete
         run: |
           ls artifacts
@@ -108,9 +113,9 @@ jobs:
           unzip -p artifacts/Kitpymes.Core.Mediator.[0-9]*.nupkg '*.nuspec' | tee mediator.nuspec
           if grep 'id="Kitpymes.Core.Mediator.Abstractions"' mediator.nuspec | grep -q 'Analyzers'; then echo "::error::Mediator excluye los analizadores de Abstractions: KPY0003 no llegaría."; exit 1; fi
           # El dominio referencia Abstractions y no puede depender de ASP.NET Core (architecture.md).
+          chk="$GITHUB_WORKSPACE/.github/scripts/check-dependencias.sh"
           for f in abstractions.nuspec mediator.nuspec; do
-            if grep -q -i 'frameworkReference' $f; then echo "::error::$f lleva frameworkReferences."; exit 1; fi
-            if grep -q 'id="Kitpymes.Core.Shared"' $f; then echo "::error::$f depende de Kitpymes.Core.Shared."; exit 1; fi
+            bash "$chk" nuspec $f
           done
           # Y tampoco a través de las dependencias: un proyecto que sólo referencia los paquetes
           # no debe recibir Microsoft.AspNetCore.App ni Kitpymes.Core.Shared al restaurar.
@@ -137,14 +142,21 @@ jobs:
           for id in Kitpymes.Core.Mediator.Abstractions Kitpymes.Core.Mediator; do
             dotnet add package $id --version "$ver"
           done
-          a=obj/project.assets.json
-          test -f $a || { echo "::error::No se ha generado $a."; exit 1; }
-          for p in "Kitpymes.Core.Mediator/$ver" "Kitpymes.Core.Mediator.Abstractions/$ver" "Kitpymes.Core.Results/1.2.0"; do
-            grep -q "\"$p" $a || { echo "::error::El consumidor no ha resuelto $p."; exit 1; }
-          done
-          if grep -q 'Microsoft.AspNetCore.App' $a; then echo "::error::Quien referencia el mediador recibe ASP.NET Core."; exit 1; fi
-          if grep -q '"Kitpymes.Core.Shared/' $a; then echo "::error::Quien referencia el mediador recibe Kitpymes.Core.Shared."; exit 1; fi
-          echo "Sin ASP.NET Core ni Shared en el consumidor."
+          bash "$chk" assets obj/project.assets.json "Kitpymes.Core.Mediator/$ver" "Kitpymes.Core.Mediator.Abstractions/$ver" "Kitpymes.Core.Results/1.2.0"
+
+      # Prueba con un paquete real que sí trae el problema: Kitpymes.Core.Results 1.1.1 lleva
+      # ASP.NET Core y Shared. Restaurado de nuget.org, el chequeo del consumidor TIENE que fallar.
+      # Demuestra que NuGet deja esas dependencias en project.assets.json y que el chequeo las ve.
+      - name: El chequeo del consumidor detecta un paquete real con ASP.NET Core
+        run: |
+          mkdir -p /tmp/consumidor-malo && cd /tmp/consumidor-malo
+          export NUGET_PACKAGES=/tmp/consumidor-malo/packages
+          dotnet new classlib -f net10.0 -o . --force > /dev/null
+          dotnet add package Kitpymes.Core.Results --version 1.1.1
+          if bash "$GITHUB_WORKSPACE/.github/scripts/check-dependencias.sh" assets obj/project.assets.json "Kitpymes.Core.Results/1.1.1"; then
+            echo "::error::El chequeo no detecta ASP.NET Core ni Shared en Kitpymes.Core.Results 1.1.1: no sirve."; exit 1
+          fi
+          echo "Detectado, como se esperaba."
 
   # En cada rama, tests de mutación con Stryker.NET: mide si los tests detectan fallos metidos
   # a propósito. Un mutante que sobrevive es un test que falta. Para la pipeline por debajo del 80 %.
