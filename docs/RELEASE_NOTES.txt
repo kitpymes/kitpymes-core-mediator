@@ -1,6 +1,7 @@
 # v.1.0.1
-- Envío y publicación más rápidos y con menos memoria, sin cambiar la API ni el comportamiento: sin lambda por llamada y, si el manejador ya ha terminado, se devuelve su misma tarea en vez de crear otra.
-- Medido con el benchmark de la pipeline (máquina de GitHub, con ruido), sin comportamientos: enviar pasa de 154 a 88 ns y de 344 a 160 B; publicar asigna 256 B.
+- Envío y publicación con menos memoria y menos trabajo por llamada, sin cambiar la API: sin lambda por llamada y, si la tarea ya ha terminado bien, se devuelve esa misma tarea (la del manejador al enviar sin comportamientos; la del envoltorio al publicar) en vez de crear otra.
+- Memoria por llamada, medida con el benchmark de la pipeline: enviar sin comportamientos, 160 B en vez de 344 B; con dos comportamientos, 520 B en vez de 704 B; publicar, 256 B en vez de 440 B. El tiempo depende mucho de la máquina y no se da.
+- Cambio de comportamiento pequeño: el manejador ya no se ejecuta dentro de un método asíncrono del mediador. Si un manejador o comportamiento no asíncrono cambia un AsyncLocal (por ejemplo Activity.Current o un ámbito de log sin cerrar) antes de devolver su tarea, ese cambio ahora llega a quien llama, igual que al llamar a cualquier método que devuelve una tarea directamente. Results, excepciones y cancelación se comportan igual.
 - Los analizadores de Microsoft.VisualStudio.Threading se ejecutan al compilar el mediador (antes no) y VSTHRD110 es error. No afecta a quien usa los paquetes.
 
 # v.1.0.0
