@@ -8,6 +8,7 @@
 namespace Kitpymes.Core.Mediator.Internal;
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -64,17 +65,14 @@ internal static class Pipeline
     /// <param name="logger">Log.</param>
     /// <param name="cancellationToken">Cancelación de quien llama.</param>
     /// <returns>Resultado.</returns>
+    [SuppressMessage("Usage", "VSTHRD003:Avoid awaiting foreign Tasks", Justification = "La tarea no es ajena: la acaba de crear quien llama, en esta misma llamada, al ejecutar el manejador.")]
     public static Task<TResult> CompleteAsync<TResult>(Task<TResult>? task, Exception? error, Type requestType, ILogger logger, CancellationToken cancellationToken)
         where TResult : Result
     {
-        // VSTHRD003: la tarea no viene de fuera; la acaba de crear quien llama, en esta misma llamada,
-        // al ejecutar el manejador. Aquí sólo se decide si hace falta esperarla.
-#pragma warning disable VSTHRD003
         if (error is null && task is not null && task.IsCompletedSuccessfully && task.Result is not null)
         {
             return task;
         }
-#pragma warning restore VSTHRD003
 
         return AwaitAsync(task, error, requestType, logger, cancellationToken);
     }
@@ -96,6 +94,7 @@ internal static class Pipeline
         return Result.FailureFor<TResult>(Error.Unexpected(MediatorErrors.Unexpected, MediatorErrors.UnexpectedMessage));
     }
 
+    [SuppressMessage("Usage", "VSTHRD003:Avoid awaiting foreign Tasks", Justification = "La tarea no es ajena: la acaba de crear quien llama, en esta misma llamada, al ejecutar el manejador.")]
     private static async Task<TResult> AwaitAsync<TResult>(Task<TResult>? task, Exception? error, Type requestType, ILogger logger, CancellationToken cancellationToken)
         where TResult : Result
     {
@@ -109,9 +108,7 @@ internal static class Pipeline
 
             var pending = task ?? throw new InvalidOperationException($"La tubería de {requestType.FullName} devolvió una tarea nula.");
 
-#pragma warning disable VSTHRD003 // Misma tarea que en CompleteAsync: creada en esta misma llamada.
             var result = await pending.ConfigureAwait(false);
-#pragma warning restore VSTHRD003
 
             return result ?? throw new InvalidOperationException($"La tubería de {requestType.FullName} devolvió un resultado nulo.");
         }
