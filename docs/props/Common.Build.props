@@ -34,6 +34,8 @@
       <PropertyGroup>
         <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <!-- Tarea descartada sin await en un método síncrono: error aunque se quiten los avisos como errores. -->
+        <WarningsAsErrors>$(WarningsAsErrors);VSTHRD110</WarningsAsErrors>
         <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1900;NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
       </PropertyGroup>
     </When>
@@ -112,7 +114,8 @@
       </PropertyGroup>
 
       <ItemGroup>
-        <PackageReference Update="Microsoft.VisualStudio.Threading.Analyzers" Version="17.4.27" PrivateAssets="All" />
+        <!-- Include y no Update: con Update no lo añadía ningún proyecto y nunca se ejecutaba. -->
+        <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="18.12.1" PrivateAssets="All" />
         <PackageReference Include="StyleCop.Analyzers" Version="1.1.118" IncludeAssets="Analyzers;Build" PrivateAssets="All" />
         <AdditionalFiles Include="$(KitpymesRoot)docs\analyzers\stylecop.json" Visible="false" />
       </ItemGroup>

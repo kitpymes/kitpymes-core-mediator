@@ -35,6 +35,20 @@ jobs:
       - name: Compilar
         run: dotnet build Solution.sln --no-restore -c Debug
 
+      # Prueba de que los analizadores se ejecutan de verdad: el proyecto de prueba compila con
+      # la tarea descartada con "_ =" y TIENE que fallar con VSTHRD110 cuando se olvida.
+      # Hasta el 23/11 Threading.Analyzers estaba como Update y no se ejecutaba en ninguna librería.
+      - name: VSTHRD110 detecta una tarea sin await
+        run: |
+          p=tests/Kitpymes.Core.Mediator.PruebaAnalizadores/Kitpymes.Core.Mediator.PruebaAnalizadores.csproj
+          dotnet build $p -c Debug
+          if dotnet build $p -c Debug --no-incremental -p:DefineConstants=DESCARTE_OLVIDADO > vsthrd110.log 2>&1; then
+            cat vsthrd110.log; echo "::error::Compila con una tarea descartada sin await: VSTHRD110 no se ejecuta."; exit 1
+          fi
+          grep -q 'error VSTHRD110' vsthrd110.log || { cat vsthrd110.log; echo "::error::Ha fallado, pero no por VSTHRD110."; exit 1; }
+          grep 'error VSTHRD110' vsthrd110.log | head -1
+          echo "VSTHRD110 detectado, como se esperaba."
+
       - name: Tests
         run: dotnet test Solution.sln --no-build -c Debug --collect:"XPlat Code Coverage" --results-directory cobertura
 
@@ -149,11 +163,13 @@ jobs:
       # Demuestra que NuGet deja esas dependencias en project.assets.json y que el chequeo las ve.
       - name: El chequeo del consumidor detecta un paquete real con ASP.NET Core
         run: |
+          set -o pipefail
           mkdir -p /tmp/consumidor-malo && cd /tmp/consumidor-malo
           export NUGET_PACKAGES=/tmp/consumidor-malo/packages
           dotnet new classlib -f net10.0 -o . --force > /dev/null
           dotnet add package Kitpymes.Core.Results --version 1.1.1
-          if bash "$GITHUB_WORKSPACE/.github/scripts/check-dependencias.sh" assets obj/project.assets.json "Kitpymes.Core.Results/1.1.1"; then
+          # Sin "::error::" en la salida: aquí el fallo es lo esperado y no debe salir como error en GitHub.
+          if bash "$GITHUB_WORKSPACE/.github/scripts/check-dependencias.sh" assets obj/project.assets.json "Kitpymes.Core.Results/1.1.1" | sed 's/::error:://'; then
             echo "::error::El chequeo no detecta ASP.NET Core ni Shared en Kitpymes.Core.Results 1.1.1: no sirve."; exit 1
           fi
           echo "Detectado, como se esperaba."

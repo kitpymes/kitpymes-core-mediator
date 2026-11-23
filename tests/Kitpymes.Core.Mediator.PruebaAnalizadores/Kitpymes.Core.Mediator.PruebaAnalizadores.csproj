@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="$(KitpymesRoot)docs/props/Common.Build.props" Condition="Exists('$(KitpymesRoot)docs/props/Common.Build.props')" />
+
+  <!--
+    Prueba de que los analizadores de Common.Build.props se ejecutan: no está en Solution.sln ni se empaqueta.
+    La pipeline lo compila dos veces: tal cual tiene que compilar, y con DESCARTE_OLVIDADO tiene que fallar con VSTHRD110.
+    El nombre no lleva "Tests" para que Common.Build.props le aplique los analizadores como a una librería.
+  -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Remove="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>
