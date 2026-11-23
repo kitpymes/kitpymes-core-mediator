@@ -114,17 +114,36 @@ jobs:
           done
           # Y tampoco a través de las dependencias: un proyecto que sólo referencia los paquetes
           # no debe recibir Microsoft.AspNetCore.App ni Kitpymes.Core.Shared al restaurar.
+          # La versión sale del paquete generado; caché propia y mapeo de orígenes para que los
+          # paquetes Kitpymes.Core.Mediator* sólo puedan venir de los recién empaquetados.
+          ver=$(ls artifacts | grep -oP '^Kitpymes\.Core\.Mediator\.Abstractions\.\K[0-9][^/]*(?=\.nupkg$)')
+          test -n "$ver" || { echo "::error::No se ha podido leer la versión del paquete."; exit 1; }
           mkdir -p /tmp/consumidor && cd /tmp/consumidor
+          export NUGET_PACKAGES=/tmp/consumidor/packages
           dotnet new classlib -f net10.0 -o . --force > /dev/null
-          ver=$(grep -oP '(?<=<Version>)[^<]+' "$GITHUB_WORKSPACE/docs/props/Pack.Build.props")
-          # dotnet add package sólo admite un --source: el local va en un nuget.config junto a nuget.org.
-          dotnet new nugetconfig --force > /dev/null
-          dotnet nuget add source "$GITHUB_WORKSPACE/artifacts" -n local --configfile nuget.config
+          cat > nuget.config <<XML
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="local" value="$GITHUB_WORKSPACE/artifacts" />
+              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+            </packageSources>
+            <packageSourceMapping>
+              <packageSource key="local"><package pattern="Kitpymes.Core.Mediator*" /></packageSource>
+              <packageSource key="nuget.org"><package pattern="*" /></packageSource>
+            </packageSourceMapping>
+          </configuration>
+          XML
           for id in Kitpymes.Core.Mediator.Abstractions Kitpymes.Core.Mediator; do
             dotnet add package $id --version "$ver"
           done
-          if grep -q 'Microsoft.AspNetCore.App' obj/project.assets.json; then echo "::error::Quien referencia el mediador recibe ASP.NET Core."; exit 1; fi
-          if grep -q '"Kitpymes.Core.Shared/' obj/project.assets.json; then echo "::error::Quien referencia el mediador recibe Kitpymes.Core.Shared."; exit 1; fi
+          a=obj/project.assets.json
+          test -f $a || { echo "::error::No se ha generado $a."; exit 1; }
+          for p in "Kitpymes.Core.Mediator/$ver" "Kitpymes.Core.Mediator.Abstractions/$ver" "Kitpymes.Core.Results/1.2.0"; do
+            grep -q "\"$p" $a || { echo "::error::El consumidor no ha resuelto $p."; exit 1; }
+          done
+          if grep -q 'Microsoft.AspNetCore.App' $a; then echo "::error::Quien referencia el mediador recibe ASP.NET Core."; exit 1; fi
+          if grep -q '"Kitpymes.Core.Shared/' $a; then echo "::error::Quien referencia el mediador recibe Kitpymes.Core.Shared."; exit 1; fi
           echo "Sin ASP.NET Core ni Shared en el consumidor."
 
   # En cada rama, tests de mutación con Stryker.NET: mide si los tests detectan fallos metidos
