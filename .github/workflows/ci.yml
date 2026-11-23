@@ -42,13 +42,17 @@ jobs:
         run: |
           p=tests/Kitpymes.Core.Mediator.PruebaAnalizadores/Kitpymes.Core.Mediator.PruebaAnalizadores.csproj
           dotnet build $p -c Debug
-          if dotnet build $p -c Debug --no-incremental -p:DefineConstants=DESCARTE_OLVIDADO > vsthrd110.log 2>&1; then
-            cat vsthrd110.log; echo "::error::Compila con una tarea descartada sin await: VSTHRD110 no se ejecuta."; exit 1
-          fi
-          grep -q 'error VSTHRD110' vsthrd110.log || { cat vsthrd110.log; echo "::error::Ha fallado, pero no por VSTHRD110."; exit 1; }
-          # Sin la palabra "error": el analizador de salida de dotnet lo mostraría como error en GitHub.
-          grep 'error VSTHRD110' vsthrd110.log | head -1 | sed 's/error VSTHRD110/VSTHRD110 (esperado)/'
-          echo "VSTHRD110 detectado, como se esperaba."
+          # Dos veces: con los avisos como errores y sin ellos (TreatWarningsAsErrors=false), para probar
+          # también que VSTHRD110 es error por sí solo.
+          for twae in true false; do
+            if dotnet build $p -c Debug --no-incremental -p:DescarteOlvidado=true -p:TreatWarningsAsErrors=$twae > vsthrd110.log 2>&1; then
+              cat vsthrd110.log; echo "::error::Compila con una tarea descartada sin await (TreatWarningsAsErrors=$twae): VSTHRD110 no es error."; exit 1
+            fi
+            grep -q 'error VSTHRD110' vsthrd110.log || { cat vsthrd110.log; echo "::error::Ha fallado, pero no por VSTHRD110 (TreatWarningsAsErrors=$twae)."; exit 1; }
+            # Sin la palabra "error": el analizador de salida de dotnet lo mostraría como error en GitHub.
+            grep 'error VSTHRD110' vsthrd110.log | head -1 | sed 's/error VSTHRD110/VSTHRD110 (esperado)/'
+            echo "VSTHRD110 detectado con TreatWarningsAsErrors=$twae, como se esperaba."
+          done
 
       - name: Tests
         run: dotnet test Solution.sln --no-build -c Debug --collect:"XPlat Code Coverage" --results-directory cobertura
