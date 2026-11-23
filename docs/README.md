@@ -82,7 +82,7 @@ Assert.IsTrue(result.IsSuccess, result.Error?.Message); // una línea por proble
 ## Lo que no hace (a propósito)
 
 - **Trimming / NativeAOT:** no es compatible. Busca manejadores por reflexión y crea tipos genéricos en ejecución, y `LoadMediator` lo declara con `[RequiresUnreferencedCode]` y `[RequiresDynamicCode]`.
-- **ASP.NET Core:** ni el mediador ni sus dependencias lo usan ni lo traen. Abstractions sólo depende de Kitpymes.Core.Results 1.2.0, que no depende de nada.
+- **ASP.NET Core:** ni el mediador ni sus dependencias lo usan ni lo traen. Abstractions sólo depende de Kitpymes.Core.Results 1.2.0, que no trae ASP.NET Core ni Kitpymes.Core.Shared. La pipeline lo comprueba restaurando un proyecto que sólo referencia los paquetes.
 - **Datos en el log:** el mediador no registra la petición, pero el mensaje de algunas excepciones puede llevar valores. Por ejemplo, EF Core con `EnableSensitiveDataLogging`, que no se activa fuera de desarrollo.
 
 ## 📄 Licencia
