@@ -1,0 +1,246 @@
+name: ci
+
+# Compila y pasa los tests en cada subida, a master o a cualquier rama. El resultado
+# aparece en el PR de la rama (que abre solo auto-pr.yml).
+# En master, si la versión del proyecto aún no tiene etiqueta (vX.Y.Z), además
+# publica en NuGet y crea la etiqueta y la release en GitHub. Fusionar el PR que
+# sube la versión es, por tanto, la orden de publicar.
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Una subida nueva a la misma rama cancela la ejecución anterior, salvo en master:
+# allí no se corta nunca una publicación a medias.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restaurar
+        run: dotnet restore Solution.sln
+
+      # En Debug: algunos tests de ficheros y zip sólo se compilan en Debug (#if DEBUG).
+      - name: Compilar
+        run: dotnet build Solution.sln --no-restore -c Debug
+
+      - name: Tests
+        run: dotnet test Solution.sln --no-build -c Debug --collect:"XPlat Code Coverage" --results-directory cobertura
+
+      # Muestra el porcentaje de líneas cubiertas por los tests (informativo: no para la pipeline).
+      # Con varios proyectos de tests hay un informe por proyecto: se unen línea a línea
+      # (una línea cuenta como cubierta si algún proyecto la ejecuta) y se da la cifra por ensamblado.
+      - name: Cobertura
+        shell: python
+        run: |
+          import glob, os, xml.etree.ElementTree as ET
+          files = glob.glob("cobertura/**/coverage.cobertura.xml", recursive=True)
+          if not files:
+              print("::warning::No se generó el informe de cobertura.")
+              raise SystemExit(0)
+          lines = {}
+          for f in files:
+              root = ET.parse(f).getroot()
+              # Cada informe da las rutas relativas a su propia carpeta <source>: se pasan a absolutas para poder unirlos.
+              sources = [x.text or "" for x in root.iter("source")]
+              base = sources[0] if sources else ""
+              for package in root.iter("package"):
+                  name = package.get("name")
+                  for cls in package.iter("class"):
+                      filename = os.path.normpath(os.path.join(base, cls.get("filename")))
+                      for line in cls.iter("line"):
+                          key = (name, filename, line.get("number"))
+                          lines[key] = lines.get(key, False) or int(line.get("hits", "0")) > 0
+          per = {}
+          for (name, _, _), hit in lines.items():
+              total, covered = per.get(name, (0, 0))
+              per[name] = (total + 1, covered + (1 if hit else 0))
+          total = sum(t for t, _ in per.values())
+          covered = sum(c for _, c in per.values())
+          out = [f"### Cobertura de líneas: {100 * covered / total:.1f} %", ""]
+          out += [f"- {name}: {100 * c / t:.1f} % ({c}/{t})" for name, (t, c) in sorted(per.items())]
+          files_missing = {}
+          for (name, filename, number), hit in lines.items():
+              if not hit:
+                  files_missing.setdefault((name, os.path.basename(filename)), []).append(int(number))
+          out += ["", "Líneas sin cubrir:"]
+          out += [f"- {n} {f}: {sorted(set(v))}" for (n, f), v in sorted(files_missing.items())]
+          print("\n".join(out))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("\n".join(out) + "\n")
+
+  # En cada rama, empaqueta en Release sin publicar: comprueba que la versión no rompe la API
+  # de la última publicada (validación de paquete) y que el analizador va dentro del paquete.
+  pack-check:
+    if: github.ref != 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Empaquetar (sin publicar)
+        run: dotnet pack Solution.sln -c Release -o artifacts
+
+      - name: Comprobar el contenido del paquete
+        run: |
+          ls artifacts
+          for id in Kitpymes.Core.Mediator Kitpymes.Core.Mediator.Abstractions; do
+            ls artifacts | grep -q -E "^$id\.[0-9].*\.nupkg$" || { echo "::error::Falta el paquete $id."; exit 1; }
+          done
+          if ls artifacts/*.nupkg | grep -v -E '/Kitpymes\.Core\.Mediator(\.Abstractions)?\.[0-9]'; then echo "::error::Se ha empaquetado un proyecto que no es Mediator ni Mediator.Abstractions."; exit 1; fi
+          unzip -p artifacts/Kitpymes.Core.Mediator.Abstractions.*[0-9].nupkg '*.nuspec' | tee abstractions.nuspec
+          if grep -q 'id="Kitpymes.Core.Mediator"' abstractions.nuspec; then echo "::error::Abstractions no puede depender de la implementación."; exit 1; fi
+
+  # En cada rama, tests de mutación con Stryker.NET: mide si los tests detectan fallos metidos
+  # a propósito. Un mutante que sobrevive es un test que falta. La puntuación sale en el resumen.
+  mutation:
+    if: github.ref != 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Instalar Stryker.NET
+        run: dotnet tool install -g dotnet-stryker --version 5.1.0
+
+      - name: Mutación de Mediator
+        working-directory: Kitpymes.Core.Mediator.Tests
+        run: dotnet stryker --project Kitpymes.Core.Mediator.csproj --reporter markdown --reporter json --reporter progress --output ../mutacion/mediator
+
+      - name: Resumen
+        if: always()
+        run: find mutacion -name '*.md' -exec cat {} + | tee -a "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Mutantes vivos
+        if: always()
+        shell: python
+        run: |
+          import glob, json, os
+          for f in glob.glob("mutacion/**/mutation-report.json", recursive=True):
+              data = json.load(open(f, encoding="utf-8"))
+              for name, file in data["files"].items():
+                  lines = file["source"].split("\n")
+                  for m in file["mutants"]:
+                      if m["status"] in ("Survived", "NoCoverage"):
+                          line = m["location"]["start"]["line"]
+                          print(f"{m['status']}: {os.path.basename(name)}:{line} {m['mutatorName']} -> {m.get('replacement', '')!r} | {lines[line - 1].strip()}")
+
+  # En cada rama, compara con MediatR 12 (informativo): coste de enviar un comando y publicar
+  # una notificación, con 0 y 2 comportamientos. La tabla sale en el log y en el resumen.
+  benchmark:
+    if: github.ref != 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Benchmark contra MediatR
+        run: dotnet run -c Release --project benchmarks/Kitpymes.Core.Mediator.Benchmarks/Kitpymes.Core.Mediator.Benchmarks.csproj -- --job short --filter '*' --exporters github
+
+      - name: Resumen
+        if: always()
+        run: find BenchmarkDotNet.Artifacts -name '*-report-github.md' -exec cat {} + | tee -a "$GITHUB_STEP_SUMMARY" || true
+
+  # En cada rama (lo que luego es un PR) comprueba que nuget.org confía en este repo
+  # (política de Trusted Publishing). Sin ella, fusionar un cambio de versión fallaría al
+  # publicar; así se ve antes de fusionar. No publica nada: pide una clave temporal y la descarta.
+  nuget-policy:
+    if: github.ref != 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Comprobar la política de NuGet
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: kitpymes
+
+      - name: Avisar si falta la política
+        if: failure()
+        run: |
+          echo "::error::Falta la política de Trusted Publishing de este repo en nuget.org (cuenta Kitpymes): owner kitpymes, repositorio ${{ github.event.repository.name }}, workflow ci.yml, sin entorno. Sin ella no se puede publicar."
+          exit 1
+
+  publish:
+    # Sólo en master y sólo si los tests han pasado.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: build-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # crear la etiqueta y la release
+      id-token: write   # Trusted Publishing: nuget.org da una clave temporal sin guardar ninguna aquí
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Ver si esta versión ya está publicada
+        id: version
+        run: |
+          version=$(dotnet msbuild Kitpymes.Core.Mediator/Kitpymes.Core.Mediator.csproj -getProperty:Version -p:Configuration=Release)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
+            echo "La versión $version ya tiene etiqueta: no hay nada que publicar."
+            echo "publicar=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publicar=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sacar las notas de esta versión
+        if: steps.version.outputs.publicar == 'true'
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          primera=$(head -n 1 docs/RELEASE_NOTES.txt | tr -d '\r')
+          if [ "$primera" != "# v.$version" ]; then
+            echo "Las release notes empiezan por '$primera' y deberían empezar por '# v.$version'. No se publica."
+            exit 1
+          fi
+          awk 'NR > 1 && /^# v\./ { exit } NR > 1' docs/RELEASE_NOTES.txt | tr -d '\r' > notas.md
+
+      - name: Empaquetar
+        if: steps.version.outputs.publicar == 'true'
+        run: dotnet pack Solution.sln -c Release -o artifacts
+
+      - name: Iniciar sesión en NuGet (clave temporal de 1 hora)
+        if: steps.version.outputs.publicar == 'true'
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: kitpymes
+
+      - name: Publicar en NuGet
+        if: steps.version.outputs.publicar == 'true'
+        run: dotnet nuget push "artifacts/*.nupkg" --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+      # Después de NuGet: si algo falla antes, no queda una release de un paquete que no existe.
+      - name: Crear etiqueta y release en GitHub
+        if: steps.version.outputs.publicar == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          gh release create "v$version" --target "$GITHUB_SHA" --title "v$version" --notes-file notas.md
