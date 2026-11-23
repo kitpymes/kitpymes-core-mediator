@@ -297,6 +297,35 @@ namespace Kitpymes.Core.Mediator.Tests
             Assert.IsTrue((await actual).IsSuccess);
         }
 
+        [TestMethod]
+        public async Task SendAsync_Passing_HandlerThatCancelsBeforeTask_Returns_CanceledTaskWithoutThrowing()
+        {
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            using var provider = TestHost.Build(services =>
+            {
+                services.RemoveAll<ICommandHandler<DoCommand, Result>>();
+                services.AddTransient<ICommandHandler<DoCommand, Result>, CancelsBeforeTaskHandler>();
+            });
+            using var scope = provider.CreateScope();
+
+            // Fuera de una lambda: si SendAsync lanzara de forma síncrona, el test fallaría aquí.
+            var actual = scope.ServiceProvider.GetRequiredService<ISender>().SendAsync(new DoCommand(Behavior.Ok), cancellation.Token);
+
+            await Assert.ThrowsAsync<OperationCanceledException>(() => actual);
+            Assert.IsTrue(actual.IsCanceled);
+            Assert.AreEqual(0, provider.GetRequiredService<TestLog>().Entries.Count(x => x.Level == LogLevel.Error));
+        }
+
+        private sealed class CancelsBeforeTaskHandler : ICommandHandler<DoCommand, Result>
+        {
+            public Task<Result> HandleAsync(DoCommand command, CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return Task.FromResult(Result.Success());
+            }
+        }
+
         private sealed class CompletedHandler : ICommandHandler<DoCommand, Result>
         {
             private readonly Task<Result> _task;

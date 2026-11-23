@@ -36,7 +36,7 @@ internal static class Pipeline
     /// <param name="logger">Log.</param>
     /// <param name="cancellationToken">Cancelación de quien llama.</param>
     /// <returns>Resultado.</returns>
-    [SuppressMessage("Usage", "VSTHRD003:Avoid awaiting foreign Tasks", Justification = "La tarea no es ajena: la acaba de crear quien llama, en esta misma llamada, al ejecutar el manejador.")]
+    [SuppressMessage("Usage", "VSTHRD003:Avoid awaiting foreign Tasks", Justification = "Es la tarea que acaba de devolver el manejador (o el envoltorio) en esta misma llamada: sólo se mira si ya terminó o se espera, como hacía el método asíncrono anterior.")]
     public static Task<TResult> CompleteAsync<TResult>(Task<TResult>? task, Exception? error, Type requestType, ILogger logger, CancellationToken cancellationToken)
         where TResult : Result
     {
@@ -65,7 +65,7 @@ internal static class Pipeline
         return Result.FailureFor<TResult>(Error.Unexpected(MediatorErrors.Unexpected, MediatorErrors.UnexpectedMessage));
     }
 
-    [SuppressMessage("Usage", "VSTHRD003:Avoid awaiting foreign Tasks", Justification = "La tarea no es ajena: la acaba de crear quien llama, en esta misma llamada, al ejecutar el manejador.")]
+    [SuppressMessage("Usage", "VSTHRD003:Avoid awaiting foreign Tasks", Justification = "Es la tarea que acaba de devolver el manejador (o el envoltorio) en esta misma llamada: sólo se mira si ya terminó o se espera, como hacía el método asíncrono anterior.")]
     private static async Task<TResult> AwaitAsync<TResult>(Task<TResult>? task, Exception? error, Type requestType, ILogger logger, CancellationToken cancellationToken)
         where TResult : Result
     {
