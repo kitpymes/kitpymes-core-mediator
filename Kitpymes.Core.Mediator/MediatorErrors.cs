@@ -18,12 +18,13 @@ public static class MediatorErrors
     public const string Unexpected = "Core.Unexpected";
 
     /// <summary>
-    /// El mediador no está bien configurado (lo devuelve <see cref="MediatorVerifier.Verify(System.IServiceProvider)"/>).
+    /// El mediador no está bien configurado (lo devuelve <see cref="MediatorVerifier.VerifyAsync"/>).
     /// </summary>
     public const string Configuration = "Core.MediatorConfiguracion";
 
     /// <summary>
-    /// Mensaje que recibe quien llama cuando algo inesperado falla. No lleva detalles internos.
+    /// Obtiene el mensaje que recibe quien llama cuando algo inesperado falla. No lleva detalles internos.
     /// </summary>
-    public const string UnexpectedMessage = "Se ha producido un error inesperado.";
+    /// <remarks>Es una propiedad y no una constante: así se puede cambiar el texto sin que quien lo use tenga que recompilar.</remarks>
+    public static string UnexpectedMessage => "Se ha producido un error inesperado.";
 }

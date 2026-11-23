@@ -5,6 +5,7 @@ using Kitpymes.Core.Mediator.Tests.Ok;
 using Kitpymes.Core.Results;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Linq;
@@ -17,51 +18,51 @@ namespace Kitpymes.Core.Mediator.Tests
     [TestClass]
     public class VerifierTest
     {
-        private static Result VerifyMal(Action<IServiceCollection>? configure = null)
+        private static async Task<Result> VerifyMal(Action<IServiceCollection>? configure = null)
         {
             var services = new ServiceCollection();
             services.LoadMediator(o => o.WithAssemblies(typeof(Mal.OrphanCommand).Assembly).WithValidation(false));
             configure?.Invoke(services);
 
-            using var provider = services.BuildServiceProvider();
-            return MediatorVerifier.Verify(provider);
+            await using var provider = services.BuildServiceProvider();
+            return await MediatorVerifier.VerifyAsync(provider);
         }
 
         [TestMethod]
-        public void Verify_Passing_CorrectConfiguration_Returns_Success()
+        public async Task Verify_Passing_CorrectConfiguration_Returns_Success()
         {
             using var provider = TestHost.Build();
 
-            var actual = MediatorVerifier.Verify(provider);
+            var actual = await MediatorVerifier.VerifyAsync(provider);
 
             Assert.IsTrue(actual.IsSuccess, actual.Error?.Message);
         }
 
         [TestMethod]
-        public void Verify_Passing_Null_Throws_ArgumentNullException()
+        public async Task Verify_Passing_Null_Throws_ArgumentNullException()
         {
-            Assert.ThrowsExactly<ArgumentNullException>(() => MediatorVerifier.Verify(null!));
+            await Assert.ThrowsExactlyAsync<ArgumentNullException>(() => MediatorVerifier.VerifyAsync(null!));
         }
 
         [TestMethod]
-        public void Verify_Passing_ProviderWithoutMediator_Returns_FailureLoadMediatorMissing()
+        public async Task Verify_Passing_ProviderWithoutMediator_Returns_FailureLoadMediatorMissing()
         {
             using var provider = new ServiceCollection().BuildServiceProvider();
 
-            var actual = MediatorVerifier.Verify(provider);
+            var actual = await MediatorVerifier.VerifyAsync(provider);
 
             Assert.AreEqual(MediatorErrors.Configuration, actual.Error!.Code);
             StringAssert.Contains(actual.Error.Message, "LoadMediator");
         }
 
         [TestMethod]
-        public void Verify_Passing_NoAssemblies_Returns_Failure()
+        public async Task Verify_Passing_NoAssemblies_Returns_Failure()
         {
             var services = new ServiceCollection();
             services.LoadMediator(o => o.WithValidation(false));
             using var provider = services.BuildServiceProvider();
 
-            var actual = MediatorVerifier.Verify(provider);
+            var actual = await MediatorVerifier.VerifyAsync(provider);
 
             StringAssert.Contains(actual.Error!.Message, "WithAssemblies");
         }
@@ -73,18 +74,18 @@ namespace Kitpymes.Core.Mediator.Tests
         [DataRow("TwoResultsCommand implementa a la vez")]
         [DataRow("No se pueden crear el manejador de NeedsDependencyCommand (Result)")]
         [DataRow("No se pueden crear los manejadores de BrokenNotification")]
-        public void Verify_Passing_WrongConfiguration_Returns_FailureWithEachProblem(string expected)
+        public async Task Verify_Passing_WrongConfiguration_Returns_FailureWithEachProblem(string expected)
         {
-            var actual = VerifyMal();
+            var actual = await VerifyMal();
 
             Assert.AreEqual(MediatorErrors.Configuration, actual.Error!.Code);
             StringAssert.Contains(actual.Error.Message, expected);
         }
 
         [TestMethod]
-        public void Verify_Passing_WrongConfiguration_Returns_ProblemsInAlphabeticalOrderAndGenericNames()
+        public async Task Verify_Passing_WrongConfiguration_Returns_ProblemsInAlphabeticalOrderAndGenericNames()
         {
-            var message = VerifyMal().Error!.Message;
+            var message = (await VerifyMal()).Error!.Message;
 
             StringAssert.Contains(message, "ICommand<Result> y ICommand<Result<Int32>>");
             Assert.IsTrue(message.IndexOf("BothCommandAndQuery implementa", StringComparison.Ordinal) < message.IndexOf("TwoResultsCommand implementa", StringComparison.Ordinal));
@@ -93,7 +94,7 @@ namespace Kitpymes.Core.Mediator.Tests
         }
 
         [TestMethod]
-        public void Verify_Passing_RequestFromUnscannedAssembly_Returns_ItInCatalogWithItsHandler()
+        public async Task Verify_Passing_RequestFromUnscannedAssembly_Returns_ItInCatalogWithItsHandler()
         {
             var services = new ServiceCollection();
             services.LoadMediator(o => o.WithAssemblies(typeof(Mal.OrphanCommand).Assembly).WithValidation(false));
@@ -102,63 +103,63 @@ namespace Kitpymes.Core.Mediator.Tests
             var catalog = provider.GetRequiredService<IMediatorCatalog>();
 
             Assert.IsTrue(catalog.Commands.Contains(typeof(Kitpymes.Core.Mediator.Tests.Contratos.ContractCommand)));
-            Assert.IsFalse(MediatorVerifier.Verify(provider).Error!.Message.Contains("ContractCommand", StringComparison.Ordinal));
+            Assert.IsFalse((await MediatorVerifier.VerifyAsync(provider)).Error!.Message.Contains("ContractCommand", StringComparison.Ordinal));
         }
 
         [TestMethod]
-        public void Verify_Passing_CommandBehaviorWithMissingDependency_Returns_Failure()
+        public async Task Verify_Passing_CommandBehaviorWithMissingDependency_Returns_Failure()
         {
             using var provider = TestHost.Build(services => services.AddTransient(typeof(ICommandBehavior<,>), typeof(NeedsMissingCommandBehavior<,>)));
 
-            var actual = MediatorVerifier.Verify(provider);
+            var actual = await MediatorVerifier.VerifyAsync(provider);
 
             StringAssert.Contains(actual.Error!.Message, "No se pueden crear los comportamientos de DoCommand (Result)");
         }
 
         [TestMethod]
-        public void Verify_Passing_ValidationCheckRegisteredOnlyAsValidationCheck_Returns_SuccessRunningItOnce()
+        public async Task Verify_Passing_ValidationCheckRegisteredOnlyAsValidationCheck_Returns_SuccessRunningItOnce()
         {
             FakeValidationCheck.Calls = 0;
             using var provider = TestHost.Build(services => services.AddSingleton<IValidationStartupCheck, FakeValidationCheck>(), o => o.WithValidation());
 
-            var actual = MediatorVerifier.Verify(provider);
+            var actual = await MediatorVerifier.VerifyAsync(provider);
 
             Assert.IsTrue(actual.IsSuccess, actual.Error?.Message);
             Assert.AreEqual(1, FakeValidationCheck.Calls);
         }
 
         [TestMethod]
-        public void Verify_Passing_SecondHandlerAddedByHand_Returns_FailureTwoHandlers()
+        public async Task Verify_Passing_SecondHandlerAddedByHand_Returns_FailureTwoHandlers()
         {
             using var provider = TestHost.Build(services => services.AddTransient<ICommandHandler<DoCommand, Result>, DoCommandHandler>());
 
-            var actual = MediatorVerifier.Verify(provider);
+            var actual = await MediatorVerifier.VerifyAsync(provider);
 
             StringAssert.Contains(actual.Error!.Message, "DoCommand (Result) tiene 2 manejadores");
         }
 
         [TestMethod]
-        public void Verify_Passing_BehaviorWithMissingDependency_Returns_Failure()
+        public async Task Verify_Passing_BehaviorWithMissingDependency_Returns_Failure()
         {
             using var provider = TestHost.Build(services => services.AddTransient(typeof(IPipelineBehavior<,>), typeof(NeedsMissingBehavior<,>)));
 
-            var actual = MediatorVerifier.Verify(provider);
+            var actual = await MediatorVerifier.VerifyAsync(provider);
 
             StringAssert.Contains(actual.Error!.Message, "No se pueden crear los comportamientos de");
         }
 
         [TestMethod]
-        public void Verify_Passing_ValidationRequiredWithoutCheck_Returns_Failure()
+        public async Task Verify_Passing_ValidationRequiredWithoutCheck_Returns_Failure()
         {
             using var provider = TestHost.Build(options: o => o.WithValidation());
 
-            var actual = MediatorVerifier.Verify(provider);
+            var actual = await MediatorVerifier.VerifyAsync(provider);
 
             StringAssert.Contains(actual.Error!.Message, "WithValidation(false)");
         }
 
         [TestMethod]
-        public void Verify_Passing_ValidationRequiredWithCheckRegisteredTwice_Returns_SuccessRunningItOnce()
+        public async Task Verify_Passing_ValidationRequiredWithCheckRegisteredTwice_Returns_SuccessRunningItOnce()
         {
             FakeValidationCheck.Calls = 0;
             using var provider = TestHost.Build(
@@ -169,44 +170,66 @@ namespace Kitpymes.Core.Mediator.Tests
                 },
                 o => o.WithValidation());
 
-            var actual = MediatorVerifier.Verify(provider);
+            var actual = await MediatorVerifier.VerifyAsync(provider);
 
             Assert.IsTrue(actual.IsSuccess, actual.Error?.Message);
             Assert.AreEqual(1, FakeValidationCheck.Calls);
         }
 
         [TestMethod]
-        public void Verify_Passing_CheckThatFails_Returns_FailureWithItsMessage()
+        public async Task Verify_Passing_CheckThatFails_Returns_FailureWithItsMessage()
         {
             using var provider = TestHost.Build(services => services.AddSingleton<IStartupCheck>(new LambdaCheck(() => Result.Failure(Error.Conflict("Tests.Check", "La comprobación falla.")))));
 
-            var actual = MediatorVerifier.Verify(provider);
+            var actual = await MediatorVerifier.VerifyAsync(provider);
 
             StringAssert.Contains(actual.Error!.Message, "La comprobación falla.");
         }
 
         [TestMethod]
-        public void Verify_Passing_CheckThatThrows_Returns_FailureWithException()
+        public async Task Verify_Passing_CheckThatThrows_Returns_FailureWithException()
         {
             using var provider = TestHost.Build(services => services.AddSingleton<IStartupCheck>(new LambdaCheck(() => throw new InvalidOperationException("la comprobación lanza"))));
 
-            var actual = MediatorVerifier.Verify(provider);
+            var actual = await MediatorVerifier.VerifyAsync(provider);
 
             StringAssert.Contains(actual.Error!.Message, "la comprobación lanza");
         }
 
         [TestMethod]
-        public void Verify_Passing_CheckThatReturnsNull_Returns_Failure()
+        public async Task Verify_Passing_CheckThatReturnsNullTask_Returns_Failure()
         {
-            using var provider = TestHost.Build(services => services.AddSingleton<IStartupCheck>(new LambdaCheck(() => null!)));
+            using var provider = TestHost.Build(services => services.AddSingleton<IStartupCheck>(new NullTaskCheck()));
 
-            var actual = MediatorVerifier.Verify(provider);
+            var actual = await MediatorVerifier.VerifyAsync(provider);
 
             StringAssert.Contains(actual.Error!.Message, "resultado nulo");
         }
 
         [TestMethod]
-        public void Verify_Passing_CheckThatSucceeds_Returns_SuccessAndReceivesCatalog()
+        public async Task Verify_Passing_LibraryDisablesValidationAfterApplication_Returns_ValidationStillRequired()
+        {
+            using var provider = TestHost.Build(
+                services => services.LoadMediator(o => o.WithAssemblies(typeof(DoCommand).Assembly).WithValidation(false)),
+                o => o.WithValidation());
+
+            var actual = await MediatorVerifier.VerifyAsync(provider);
+
+            StringAssert.Contains(actual.Error!.Message, "Falta la comprobación de validación");
+        }
+
+        [TestMethod]
+        public async Task Verify_Passing_CheckThatReturnsNull_Returns_Failure()
+        {
+            using var provider = TestHost.Build(services => services.AddSingleton<IStartupCheck>(new LambdaCheck(() => null!)));
+
+            var actual = await MediatorVerifier.VerifyAsync(provider);
+
+            StringAssert.Contains(actual.Error!.Message, "resultado nulo");
+        }
+
+        [TestMethod]
+        public async Task Verify_Passing_CheckThatSucceeds_Returns_SuccessAndReceivesCatalog()
         {
             IMediatorCatalog? seen = null;
             using var provider = TestHost.Build(services => services.AddSingleton<IStartupCheck>(new LambdaCheck((catalog, _) =>
@@ -215,7 +238,7 @@ namespace Kitpymes.Core.Mediator.Tests
                 return Result.Success();
             })));
 
-            var actual = MediatorVerifier.Verify(provider);
+            var actual = await MediatorVerifier.VerifyAsync(provider);
 
             Assert.IsTrue(actual.IsSuccess, actual.Error?.Message);
             Assert.IsTrue(seen!.Commands.Contains(typeof(DoCommand)));
@@ -224,20 +247,20 @@ namespace Kitpymes.Core.Mediator.Tests
         }
 
         [TestMethod]
-        public void Verify_Passing_HandlerWithAsyncDisposableDependency_Returns_Success()
+        public async Task Verify_Passing_HandlerWithAsyncDisposableDependency_Returns_Success()
         {
             // TestHost registra OnlyAsyncDisposable, que necesita el manejador de UsesAsyncDisposableQuery.
             using var provider = TestHost.Build();
 
-            var actual = MediatorVerifier.Verify(provider);
+            var actual = await MediatorVerifier.VerifyAsync(provider);
 
             Assert.IsTrue(actual.IsSuccess, actual.Error?.Message);
         }
 
         [TestMethod]
-        public void Verify_Passing_ManyProblems_Returns_OneLinePerProblem()
+        public async Task Verify_Passing_ManyProblems_Returns_OneLinePerProblem()
         {
-            var actual = VerifyMal();
+            var actual = await VerifyMal();
 
             var lines = actual.Error!.Message.Split(Environment.NewLine);
             Assert.AreEqual("El mediador no está bien configurado:", lines[0]);
@@ -280,7 +303,38 @@ namespace Kitpymes.Core.Mediator.Tests
             await host.StartAsync();
             await host.StopAsync();
 
-            Assert.IsFalse(MediatorVerifier.Verify(host.Services).IsSuccess);
+            Assert.IsFalse((await MediatorVerifier.VerifyAsync(host.Services)).IsSuccess);
+        }
+
+        [TestMethod]
+        public async Task StartAsync_Passing_WithoutStartupVerification_Returns_WarningInLog()
+        {
+            var log = new TestLog();
+            var builder = Host.CreateApplicationBuilder();
+            builder.Logging.ClearProviders().AddProvider(log);
+            builder.Services.LoadMediator(o => o.WithAssemblies(typeof(DoCommand).Assembly).WithValidation(false).WithStartupVerification(false));
+            using var host = builder.Build();
+
+            await host.StartAsync();
+            await host.StopAsync();
+
+            var warning = log.Entries.Single(x => x.Level == LogLevel.Warning && x.Message.Contains("WithStartupVerification(false)", StringComparison.Ordinal));
+            StringAssert.Contains(warning.Message, "tests de integración");
+        }
+
+        [TestMethod]
+        public async Task StartAsync_Passing_VerificationDisabledInOneCallAndEnabledInAnother_Returns_VerifiedWithoutWarning()
+        {
+            var log = new TestLog();
+            var builder = Host.CreateApplicationBuilder();
+            builder.Logging.ClearProviders().AddProvider(log);
+            builder.Services.LoadMediator(o => o.WithAssemblies(typeof(Mal.OrphanCommand).Assembly).WithValidation(false).WithStartupVerification(false));
+            builder.Services.LoadMediator(o => o.WithValidation(false));
+            using var host = builder.Build();
+
+            await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => host.StartAsync());
+
+            Assert.IsFalse(log.Entries.Any(x => x.Level == LogLevel.Warning && x.Message.Contains("WithStartupVerification(false)", StringComparison.Ordinal)));
         }
 
         private sealed class NeedsMissingBehavior<TRequest, TResult> : IPipelineBehavior<TRequest, TResult>
@@ -301,6 +355,11 @@ namespace Kitpymes.Core.Mediator.Tests
             public Task<TResult> HandleAsync(TCommand command, NextHandler<TResult> next, CancellationToken cancellationToken) => next();
         }
 
+        private sealed class NullTaskCheck : IStartupCheck
+        {
+            public Task<Result> CheckAsync(IMediatorCatalog catalog, IServiceProvider services, CancellationToken cancellationToken) => null!;
+        }
+
         private sealed class LambdaCheck : IStartupCheck
         {
             private readonly Func<IMediatorCatalog, IServiceProvider, Result> _check;
@@ -309,7 +368,8 @@ namespace Kitpymes.Core.Mediator.Tests
 
             public LambdaCheck(Func<IMediatorCatalog, IServiceProvider, Result> check) => _check = check;
 
-            public Result Check(IMediatorCatalog catalog, IServiceProvider services) => _check(catalog, services);
+            public Task<Result> CheckAsync(IMediatorCatalog catalog, IServiceProvider services, CancellationToken cancellationToken)
+                => Task.FromResult(_check(catalog, services));
         }
     }
 }

@@ -6,5 +6,8 @@
 - Captura de lo inesperado, siempre la primera: registra el tipo de la petición y la excepción completa, nunca el contenido, y devuelve un Result de error Core.Unexpected. La cancelación pedida por quien llama se relanza.
 - Notificaciones en secuencia, en orden de registro (alfabético dentro de cada ensamblado al escanear), parando en el primer fallo.
 - LoadMediator(o => o.WithAssemblies(...).WithValidation(...).WithStartupVerification(...)) y LoadMediator(MediatorSettings).
-- MediatorVerifier.Verify(provider): comprueba la configuración. Se ejecuta al arrancar el host y en los tests de arquitectura. IStartupCheck e IValidationStartupCheck para añadir comprobaciones.
+- MediatorVerifier.VerifyAsync(provider): comprueba la configuración. Se ejecuta al arrancar el host y en los tests de arquitectura. IStartupCheck e IValidationStartupCheck (CheckAsync) para añadir comprobaciones. Con WithStartupVerification(false) no se ejecuta al arrancar y se avisa en el log.
+- La validación y la comprobación al arrancar quedan activas si cualquier llamada a LoadMediator las pide.
+- El analizador KPY0003 de Results llega con el paquete.
 - No compatible con trimming ni NativeAOT.
+- Trae ASP.NET Core a través de Kitpymes.Core.Results 1.1.1 (por Kitpymes.Core.Shared), aunque el mediador no lo usa.

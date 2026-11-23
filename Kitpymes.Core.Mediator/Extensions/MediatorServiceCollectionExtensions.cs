@@ -51,7 +51,8 @@ public static class MediatorServiceCollectionExtensions
     /// </summary>
     /// <remarks>
     /// Registra <see cref="ISender"/> e <see cref="IPublisher"/> con ámbito (scoped) y, en cada ensamblado, los manejadores
-    /// de comandos, consultas y notificaciones (transient). Llamarlo dos veces no duplica nada. Los comportamientos los
+    /// de comandos, consultas y notificaciones (transient). Llamarlo dos veces no duplica nada. La comprobación de
+    /// validación y la de arranque quedan activas si cualquiera de las llamadas las pide. Los comportamientos los
     /// registra quien lo usa: <c>services.AddTransient(typeof(IPipelineBehavior&lt;,&gt;), typeof(MiComportamiento&lt;,&gt;))</c>.
     /// </remarks>
     /// <param name="services">Colección de servicios.</param>
@@ -77,7 +78,7 @@ public static class MediatorServiceCollectionExtensions
             services.AddSingleton<IMediatorCatalog>(catalog);
         }
 
-        catalog.RequireValidation = settings.Validation;
+        catalog.Require(settings.Validation);
 
         foreach (var assembly in settings.Assemblies.Where(x => x is not null).OrderBy(x => x.FullName, StringComparer.Ordinal))
         {
@@ -91,10 +92,12 @@ public static class MediatorServiceCollectionExtensions
         services.TryAddScoped<ISender>(x => x.GetRequiredService<Internal.Mediator>());
         services.TryAddScoped<IPublisher>(x => x.GetRequiredService<Internal.Mediator>());
 
-        if (settings.StartupVerification)
-        {
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, MediatorStartupVerifier>());
-        }
+        catalog.RequireStartupVerification(settings.StartupVerification);
+
+        // Uno de los dos: con la comprobación, la ejecuta; sin ella, avisa en el log al arrancar.
+        services.TryAddEnumerable(settings.StartupVerification
+            ? ServiceDescriptor.Singleton<IHostedService, MediatorStartupVerifier>()
+            : ServiceDescriptor.Singleton<IHostedService, MediatorStartupWarning>());
 
         return services;
     }

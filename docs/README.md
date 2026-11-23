@@ -10,14 +10,14 @@ Depende de [Kitpymes.Core.Results](https://github.com/kitpymes/kitpymes-core-res
 ## Lo esencial
 
 - **Comandos y consultas son tipos distintos** (`ICommand<TResult>`, `IQuery<TResult>`). Así un comportamiento puede aplicarse sólo a comandos, como la transacción, y el compilador impide confundirlos.
-- **Siempre se devuelve un `Result`.** Lo inesperado (una excepción de un manejador o de un comportamiento, una tarea o un resultado nulos) lo captura el mediador. Lo registra con `ILogger` con el **tipo** de la petición y la excepción completa, nunca con el contenido de la petición, y lo devuelve como `Result` de error `Core.Unexpected`.
+- **Siempre se devuelve un `Result`** (salvo una petición nula, que lanza `ArgumentNullException` porque es un error de programación). Lo inesperado (una excepción de un manejador o de un comportamiento, una tarea o un resultado nulos) lo captura el mediador. Lo registra con `ILogger` con el **tipo** de la petición y la excepción completa, nunca con el contenido de la petición, y lo devuelve como `Result` de error `Core.Unexpected`.
   - **Excepción:** si quien llama cancela su `CancellationToken`, la `OperationCanceledException` se relanza, porque nadie espera respuesta.
-- **Se comprueba la configuración antes de desplegar.** `MediatorVerifier.Verify` se ejecuta al arrancar el host (la aplicación no arranca si falla) y se usa en los tests de arquitectura:
+- **Se comprueba la configuración antes de desplegar.** `MediatorVerifier.VerifyAsync` se ejecuta al arrancar el host (la aplicación no arranca si falla) y se usa en los tests de arquitectura:
   - todo comando y consulta tiene exactamente un manejador;
   - el manejador y sus comportamientos se pueden crear;
   - ninguna petición es a la vez comando y consulta;
   - si la validación está activa, existe su comprobación.
-- **Sin API síncrona.** El analizador KPY0003 de Results da error si se tira el `Result` devuelto.
+- **Sin API síncrona.** El analizador KPY0003 de Results, que llega con el paquete, da error si se tira el `Result` devuelto.
 
 ## Registro
 
@@ -25,11 +25,11 @@ Depende de [Kitpymes.Core.Results](https://github.com/kitpymes/kitpymes-core-res
 services.LoadMediator(o => o
     .WithAssemblies(typeof(CreateUserCommand).Assembly)
     .WithValidation(false)             // sólo en tests o librerías: por defecto se exige la comprobación de validación
-    .WithStartupVerification(false));  // sólo en tests de integración (WebApplicationFactory), que llaman ellos a Verify
+    .WithStartupVerification(false));  // sólo en tests de integración (WebApplicationFactory), que llaman ellos a VerifyAsync; avisa en el log al arrancar
 ```
 
 - `ISender` e `IPublisher` se registran con ámbito (scoped). Los manejadores, como transient.
-- Llamar a `LoadMediator` dos veces no duplica nada.
+- Llamar a `LoadMediator` dos veces no duplica nada. La validación y la comprobación al arrancar quedan activas si cualquiera de las llamadas las pide: una librería que las quite no las apaga para toda la aplicación.
 - No se puede inyectar `ISender` en un singleton (middleware por convención, `BackgroundService`): crea un ámbito y pídelo dentro.
 - Los comportamientos los registra quien los usa:
 
@@ -74,7 +74,7 @@ var services = new ServiceCollection();
 // ... el mismo registro que la aplicación ...
 using var provider = services.BuildServiceProvider();
 
-var result = MediatorVerifier.Verify(provider);
+var result = await MediatorVerifier.VerifyAsync(provider);
 
 Assert.IsTrue(result.IsSuccess, result.Error?.Message); // una línea por problema
 ```
@@ -82,6 +82,7 @@ Assert.IsTrue(result.IsSuccess, result.Error?.Message); // una línea por proble
 ## Lo que no hace (a propósito)
 
 - **Trimming / NativeAOT:** no es compatible. Busca manejadores por reflexión y crea tipos genéricos en ejecución, y `LoadMediator` lo declara con `[RequiresUnreferencedCode]` y `[RequiresDynamicCode]`.
+- **ASP.NET Core:** el mediador no lo usa, pero Kitpymes.Core.Results 1.1.1 lo trae (a través de Kitpymes.Core.Shared), así que quien referencie el mediador lo recibe.
 - **Datos en el log:** el mediador no registra la petición, pero el mensaje de algunas excepciones puede llevar valores. Por ejemplo, EF Core con `EnableSensitiveDataLogging`, que no se activa fuera de desarrollo.
 
 ## 📄 Licencia

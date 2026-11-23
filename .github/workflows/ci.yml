@@ -80,8 +80,8 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
               summary.write("\n".join(out) + "\n")
 
-  # En cada rama, empaqueta en Release sin publicar: comprueba que la versión no rompe la API
-  # de la última publicada (validación de paquete) y que el analizador va dentro del paquete.
+  # En cada rama, empaqueta en Release sin publicar: comprueba que salen los dos paquetes, que no se
+  # empaqueta nada más y que Abstractions no depende de la implementación.
   pack-check:
     if: github.ref != 'refs/heads/master'
     runs-on: ubuntu-latest
@@ -104,9 +104,11 @@ jobs:
           if ls artifacts/*.nupkg | grep -v -E '/Kitpymes\.Core\.Mediator(\.Abstractions)?\.[0-9]'; then echo "::error::Se ha empaquetado un proyecto que no es Mediator ni Mediator.Abstractions."; exit 1; fi
           unzip -p artifacts/Kitpymes.Core.Mediator.Abstractions.*[0-9].nupkg '*.nuspec' | tee abstractions.nuspec
           if grep -q 'id="Kitpymes.Core.Mediator"' abstractions.nuspec; then echo "::error::Abstractions no puede depender de la implementación."; exit 1; fi
+          if grep 'id="Kitpymes.Core.Results"' abstractions.nuspec | grep -q 'Analyzers'; then echo "::error::Abstractions excluye los analizadores de Results: KPY0003 no llegaría."; exit 1; fi
+          unzip -p artifacts/Kitpymes.Core.Mediator.[0-9]*.nupkg '*.nuspec' | tee mediator.nuspec
 
   # En cada rama, tests de mutación con Stryker.NET: mide si los tests detectan fallos metidos
-  # a propósito. Un mutante que sobrevive es un test que falta. La puntuación sale en el resumen.
+  # a propósito. Un mutante que sobrevive es un test que falta. Para la pipeline por debajo del 80 %.
   mutation:
     if: github.ref != 'refs/heads/master'
     runs-on: ubuntu-latest
@@ -122,7 +124,7 @@ jobs:
 
       - name: Mutación de Mediator
         working-directory: Kitpymes.Core.Mediator.Tests
-        run: dotnet stryker --project Kitpymes.Core.Mediator.csproj --reporter markdown --reporter json --reporter progress --output ../mutacion/mediator
+        run: dotnet stryker --project Kitpymes.Core.Mediator.csproj --reporter markdown --reporter json --reporter progress --break-at 80 --output ../mutacion/mediator
 
       - name: Resumen
         if: always()
