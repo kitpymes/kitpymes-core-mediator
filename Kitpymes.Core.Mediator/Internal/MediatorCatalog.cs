@@ -48,23 +48,11 @@ internal sealed class MediatorCatalog : IMediatorCatalog
     /// </summary>
     public bool RequireValidation { get; private set; }
 
-    /// <summary>
-    /// Pide la comprobación de validación. Basta con que una llamada a LoadMediator la pida: una librería que la quite
-    /// no la apaga para toda la aplicación.
-    /// </summary>
-    /// <param name="required">Si esta llamada la pide.</param>
-    public void Require(bool required) => RequireValidation |= required;
 
     /// <summary>
     /// Obtiene un valor que indica si se comprueba la configuración al arrancar el host.
     /// </summary>
     public bool VerifyAtStartup { get; private set; }
-
-    /// <summary>
-    /// Pide la comprobación al arrancar. Basta con que una llamada a LoadMediator la pida.
-    /// </summary>
-    /// <param name="verify">Si esta llamada la pide.</param>
-    public void RequireStartupVerification(bool verify) => VerifyAtStartup |= verify;
 
     /// <summary>
     /// Nombre legible de un tipo, con sus argumentos genéricos.
@@ -75,6 +63,19 @@ internal sealed class MediatorCatalog : IMediatorCatalog
         => type.IsGenericType
             ? $"{type.Name.Substring(0, type.Name.IndexOf('`', StringComparison.Ordinal))}<{string.Join(", ", type.GetGenericArguments().Select(Name))}>"
             : type.Name;
+
+    /// <summary>
+    /// Pide la comprobación de validación. Basta con que una llamada a LoadMediator la pida: una librería que la quite
+    /// no la apaga para toda la aplicación.
+    /// </summary>
+    /// <param name="required">Si esta llamada la pide.</param>
+    public void Require(bool required) => RequireValidation |= required;
+
+    /// <summary>
+    /// Pide la comprobación al arrancar. Basta con que una llamada a LoadMediator la pida.
+    /// </summary>
+    /// <param name="verify">Si esta llamada la pide.</param>
+    public void RequireStartupVerification(bool verify) => VerifyAtStartup |= verify;
 
     /// <summary>
     /// Agrega un ensamblado si no estaba.
