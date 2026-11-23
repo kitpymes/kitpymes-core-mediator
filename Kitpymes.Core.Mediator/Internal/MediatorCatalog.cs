@@ -48,7 +48,6 @@ internal sealed class MediatorCatalog : IMediatorCatalog
     /// </summary>
     public bool RequireValidation { get; private set; }
 
-
     /// <summary>
     /// Obtiene un valor que indica si se comprueba la configuración al arrancar el host.
     /// </summary>
