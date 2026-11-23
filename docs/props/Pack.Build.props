@@ -1,0 +1,59 @@
+<Project>
+  <!-- Packaging -->
+  <!-- https://github.com/NuGet/Home/wiki/Adding-nuget-pack-as-a-msbuild-target -->
+  <!-- https://github.com/NuGet/docs.microsoft.com-nuget/blob/master/docs/reference/msbuild-targets.md -->
+  <Choose>
+    <When Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+      <PropertyGroup>
+        <Version>1.0.0</Version>
+        <ApplicationIcon>$(KitpymesRoot)docs\images\logo.ico</ApplicationIcon>
+        <PackageId>$(AssemblyName)</PackageId>
+        <Authors>Kitpymes, Sebastian R Ferrari</Authors>
+        <Owners>Kitpymes</Owners>
+        <Copyright>Copyright © $([System.DateTime]::Now.Year) by Kitpymes and Contributors. All rights reserved.</Copyright>
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+        <PackageLicenseType>file</PackageLicenseType>
+        <PackageIcon>logo.png</PackageIcon>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageProjectUrl>https://github.com/kitpymes/kitpymes-core-mediator</PackageProjectUrl>
+        <PackageReleaseNotes>https://github.com/kitpymes/kitpymes-core-mediator/blob/master/docs/RELEASE_NOTES.txt</PackageReleaseNotes>
+        <RepositoryUrl>https://github.com/kitpymes/kitpymes-core-mediator</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <!-- Al empaquetar, valida el paquete. Desde la 1.0.1, añadir PackageValidationBaselineVersion con la última publicada. -->
+        <EnablePackageValidation>true</EnablePackageValidation>
+        <!-- Título, descripción y etiquetas van en el csproj de cada paquete. -->
+      </PropertyGroup>
+
+      <ItemGroup>
+        <None Include="$(KitpymesRoot)docs\LICENSE.txt" Pack="true" PackagePath="." />
+        <None Include="$(KitpymesRoot)docs\images\logo.png" Pack="true" PackagePath="." />
+        <None Include="$(KitpymesRoot)docs\README_NUGET.md" Pack="true" PackagePath="README.md" />
+      </ItemGroup>
+
+    </When>
+  </Choose>
+
+  <!-- Source Link (https://github.com/dotnet/sourcelink) 
+    Usar un paquete NuGet es una forma muy conveniente de agregar una dependencia a su proyecto. 
+    Sin embargo, cuando tiene un problema con un paquete NuGet y desea depurarlo, es difícil porque no tiene el código fuente.
+    Muchos paquetes de NuGet tienen su código fuente en GitHub, por lo que sería muy conveniente obtener automáticamente el código del repositorio de GitHub. 
+    Esto es lo que proporciona SourceLink. 
+    Agrega algunos metadatos al archivo pdb para reasignar los archivos locales a los archivos en GitHub, para que Visual Studio pueda descargar los archivos cuando sea necesario.
+  -->
+  <Choose>
+    <When Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+      <PropertyGroup>
+        <!-- Optional: Publish the repository URL in the built .nupkg (in the NuSpec <Repository> element) -->
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <!-- Optional: Embed source files that are not tracked by the source control manager in the PDB -->
+        <EmbedUntrackedSources>true</EmbedUntrackedSources>
+        <!-- Optional: Build symbol package (.snupkg) to distribute the PDB containing Source Link -->
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+      </PropertyGroup>
+      <!-- Source Link viene incluido en el SDK desde .NET 8: ya no hace falta el paquete Microsoft.SourceLink.GitHub. -->
+    </When>
+  </Choose>
+
+</Project>
