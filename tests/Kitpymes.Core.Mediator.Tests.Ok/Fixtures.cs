@@ -118,6 +118,11 @@ namespace Kitpymes.Core.Mediator.Tests.Ok
         public Task<Result> HandleAsync(SomethingHappened notification, CancellationToken cancellationToken)
         {
             _trace.Steps.Add("C");
+            if (notification.Name == "tarea-nula-en-C")
+            {
+                return null!;
+            }
+
             return Task.FromResult(notification.Name == "nulo-en-C" ? null! : Result.Success());
         }
     }
@@ -241,6 +246,23 @@ namespace Kitpymes.Core.Mediator.Tests.Ok
         public UsesAsyncDisposableQueryHandler(OnlyAsyncDisposable dependency) => _ = dependency;
 
         public Task<Result> HandleAsync(UsesAsyncDisposableQuery query, CancellationToken cancellationToken) => Task.FromResult(Result.Success());
+    }
+
+    // Una interfaz que hereda de ICommand no es un comando: no se registra.
+    public interface IMarkerCommand : ICommand<Result>
+    {
+    }
+
+    // Una clase abstracta que implementa un manejador no es un manejador: sólo se registra la concreta.
+    public sealed record InheritedHandlerQuery : IQuery<Result>;
+
+    public abstract class BaseInheritedHandler : IQueryHandler<InheritedHandlerQuery, Result>
+    {
+        public Task<Result> HandleAsync(InheritedHandlerQuery query, CancellationToken cancellationToken) => Task.FromResult(Result.Success());
+    }
+
+    public sealed class ConcreteInheritedHandler : BaseInheritedHandler
+    {
     }
 
     // Comprobación de validación de prueba.

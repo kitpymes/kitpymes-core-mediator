@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(KitpymesRoot)Kitpymes.Core.Mediator.Abstractions\Kitpymes.Core.Mediator.Abstractions.csproj" />
+    <ProjectReference Include="$(KitpymesRoot)tests\Kitpymes.Core.Mediator.Tests.Contratos\Kitpymes.Core.Mediator.Tests.Contratos.csproj" />
   </ItemGroup>
 
 </Project>

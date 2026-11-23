@@ -66,6 +66,22 @@ namespace Kitpymes.Core.Mediator.Tests
         }
 
         [TestMethod]
+        [DataRow("tarea-nula-en-C", "tarea nula")]
+        [DataRow("nulo-en-C", "resultado nulo")]
+        public async Task PublishAsync_Passing_HandlerThatReturnsNull_Returns_LogWithHandlerType(string name, string expected)
+        {
+            using var provider = TestHost.Build();
+            using var scope = provider.CreateScope();
+
+            var actual = await scope.ServiceProvider.GetRequiredService<IPublisher>().PublishAsync(new SomethingHappened(name));
+
+            Assert.AreEqual(MediatorErrors.Unexpected, actual.Error!.Code);
+            var entry = provider.GetRequiredService<TestLog>().Entries.Single(x => x.Level == LogLevel.Error);
+            StringAssert.Contains(entry.Exception!.Message, typeof(CThirdHandler).FullName + " devolvió");
+            StringAssert.Contains(entry.Exception.Message, expected);
+        }
+
+        [TestMethod]
         public async Task PublishAsync_Passing_NotificationWithoutHandlers_Returns_Success()
         {
             using var provider = TestHost.Build();

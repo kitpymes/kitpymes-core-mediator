@@ -109,6 +109,21 @@ namespace Kitpymes.Core.Mediator.Tests
         }
 
         [TestMethod]
+        [DataRow(Behavior.NullTask, "tarea nula")]
+        [DataRow(Behavior.NullResult, "resultado nulo")]
+        public async Task SendAsync_Passing_HandlerThatReturnsNull_Returns_LogWithRequestType(Behavior behavior, string expected)
+        {
+            using var provider = TestHost.Build();
+            using var scope = provider.CreateScope();
+
+            _ = await scope.ServiceProvider.GetRequiredService<ISender>().SendAsync(new DoCommand(behavior));
+
+            var entry = provider.GetRequiredService<TestLog>().Entries.Single(x => x.Level == LogLevel.Error);
+            StringAssert.Contains(entry.Exception!.Message, typeof(DoCommand).FullName + " devolvió");
+            StringAssert.Contains(entry.Exception.Message, expected);
+        }
+
+        [TestMethod]
         public async Task SendAsync_Passing_HandlerThatThrows_Returns_LogWithTypeAndExceptionButNotContent()
         {
             using var provider = TestHost.Build();
