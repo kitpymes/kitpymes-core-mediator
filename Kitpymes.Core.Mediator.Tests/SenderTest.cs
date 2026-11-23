@@ -242,6 +242,70 @@ namespace Kitpymes.Core.Mediator.Tests
             Assert.AreSame(scope.ServiceProvider.GetRequiredService<ISender>(), scope.ServiceProvider.GetRequiredService<ISender>());
         }
 
+        [TestMethod]
+        public async Task SendAsync_Passing_HandlerThatThrowsBeforeTask_Returns_LogWithThatException()
+        {
+            using var provider = TestHost.Build();
+            using var scope = provider.CreateScope();
+
+            var actual = await scope.ServiceProvider.GetRequiredService<ISender>().SendAsync(new DoCommand(Behavior.ThrowBeforeTask));
+
+            Assert.AreEqual(MediatorErrors.Unexpected, actual.Error!.Code);
+            var entry = provider.GetRequiredService<TestLog>().Entries.Single(x => x.Level == LogLevel.Error);
+            Assert.AreEqual("antes de la tarea", entry.Exception!.Message);
+        }
+
+        [TestMethod]
+        public async Task SendAsync_Passing_CommandWithoutHandlerRegistered_Returns_LogWithResolutionError()
+        {
+            using var provider = TestHost.Build(services => services.RemoveAll<ICommandHandler<DoCommand, Result>>());
+            using var scope = provider.CreateScope();
+
+            _ = await scope.ServiceProvider.GetRequiredService<ISender>().SendAsync(new DoCommand(Behavior.Ok));
+
+            var entry = provider.GetRequiredService<TestLog>().Entries.Single(x => x.Level == LogLevel.Error);
+            StringAssert.Contains(entry.Exception!.Message, "ICommandHandler");
+        }
+
+        [TestMethod]
+        public async Task SendAsync_Passing_QueryWithoutHandlerRegistered_Returns_LogWithResolutionError()
+        {
+            using var provider = TestHost.Build(services => services.RemoveAll<IQueryHandler<GetNumberQuery, Result<int>>>());
+            using var scope = provider.CreateScope();
+
+            var actual = await scope.ServiceProvider.GetRequiredService<ISender>().SendAsync(new GetNumberQuery(1));
+
+            Assert.AreEqual(MediatorErrors.Unexpected, actual.Error!.Code);
+            var entry = provider.GetRequiredService<TestLog>().Entries.Single(x => x.Level == LogLevel.Error);
+            StringAssert.Contains(entry.Exception!.Message, "IQueryHandler");
+        }
+
+        [TestMethod]
+        public async Task SendAsync_Passing_HandlerAlreadyCompleted_Returns_SameTask()
+        {
+            var completed = Task.FromResult(Result.Success());
+            using var provider = TestHost.Build(services =>
+            {
+                services.RemoveAll<ICommandHandler<DoCommand, Result>>();
+                services.AddTransient<ICommandHandler<DoCommand, Result>>(_ => new CompletedHandler(completed));
+            });
+            using var scope = provider.CreateScope();
+
+            var actual = scope.ServiceProvider.GetRequiredService<ISender>().SendAsync(new DoCommand(Behavior.Ok));
+
+            Assert.AreSame(completed, actual);
+            Assert.IsTrue((await actual).IsSuccess);
+        }
+
+        private sealed class CompletedHandler : ICommandHandler<DoCommand, Result>
+        {
+            private readonly Task<Result> _task;
+
+            public CompletedHandler(Task<Result> task) => _task = task;
+
+            public Task<Result> HandleAsync(DoCommand command, CancellationToken cancellationToken) => _task;
+        }
+
         private sealed class ThrowingLoggerProvider : ILoggerProvider
         {
             public ILogger CreateLogger(string categoryName) => new ThrowingLogger();

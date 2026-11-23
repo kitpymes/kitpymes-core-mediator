@@ -22,7 +22,7 @@ using Microsoft.Extensions.Logging;
 internal static class Pipeline
 {
     /// <summary>
-    /// Ejecuta algo dentro de la captura común.
+    /// Ejecuta algo dentro de la captura común. Lo usa la publicación; el envío usa <see cref="CompleteAsync"/>, sin lambda.
     /// </summary>
     /// <typeparam name="TResult">Tipo del resultado.</typeparam>
     /// <param name="requestType">Tipo de la petición o notificación (lo único que se registra de ella).</param>
@@ -30,24 +30,27 @@ internal static class Pipeline
     /// <param name="run">Lo que se ejecuta. Se llama dentro de la captura: también se captura lo que lance antes de devolver la tarea.</param>
     /// <param name="cancellationToken">Cancelación de quien llama.</param>
     /// <returns>Resultado.</returns>
-    public static Task<TResult> RunAsync<TResult>(Type requestType, ILogger logger, Func<Task<TResult>> run, CancellationToken cancellationToken)
+    public static async Task<TResult> RunAsync<TResult>(Type requestType, ILogger logger, Func<Task<TResult>> run, CancellationToken cancellationToken)
         where TResult : Result
     {
-        Task<TResult>? task = null;
-        Exception? error = null;
-
         try
         {
-            task = run();
-        }
-#pragma warning disable CA1031 // Se relanza dentro de AwaitAsync, con la misma captura que si hubiera fallado la tarea.
-        catch (Exception exception)
-#pragma warning restore CA1031
-        {
-            error = exception;
-        }
+            var task = run() ?? throw new InvalidOperationException($"La tubería de {requestType.FullName} devolvió una tarea nula.");
 
-        return CompleteAsync(task, error, requestType, logger, cancellationToken);
+            var result = await task.ConfigureAwait(false);
+
+            return result ?? throw new InvalidOperationException($"La tubería de {requestType.FullName} devolvió un resultado nulo.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Quien llama pidió cancelar: no espera respuesta. Se mira el token, no el de la excepción,
+            // porque con tokens enlazados no son el mismo.
+            throw;
+        }
+        catch (Exception exception)
+        {
+            return Unexpected<TResult>(logger, exception, requestType, null);
+        }
     }
 
     /// <summary>
