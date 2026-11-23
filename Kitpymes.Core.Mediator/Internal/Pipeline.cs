@@ -22,7 +22,7 @@ internal static class Pipeline
     /// <summary>
     /// Ejecuta algo dentro de la captura común.
     /// </summary>
-    /// <typeparam name="TResult">Resultado.</typeparam>
+    /// <typeparam name="TResult">Tipo del resultado.</typeparam>
     /// <param name="requestType">Tipo de la petición o notificación (lo único que se registra de ella).</param>
     /// <param name="handlerType">Tipo del manejador que falló, si se sabe.</param>
     /// <param name="logger">Log.</param>
