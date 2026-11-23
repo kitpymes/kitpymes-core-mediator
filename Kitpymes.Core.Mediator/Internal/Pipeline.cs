@@ -48,10 +48,25 @@ internal static class Pipeline
         }
         catch (Exception exception)
         {
-            Log(logger, exception, requestType, handlerType);
-
-            return Result.FailureFor<TResult>(Error.Unexpected(MediatorErrors.Unexpected, MediatorErrors.UnexpectedMessage));
+            return Unexpected<TResult>(logger, exception, requestType, handlerType);
         }
+    }
+
+    /// <summary>
+    /// Registra lo inesperado y devuelve el <see cref="Result"/> de error que recibe quien llama.
+    /// </summary>
+    /// <typeparam name="TResult">Tipo del resultado.</typeparam>
+    /// <param name="logger">Log.</param>
+    /// <param name="exception">Excepción.</param>
+    /// <param name="requestType">Tipo de la petición o notificación.</param>
+    /// <param name="handlerType">Tipo del manejador, si se sabe.</param>
+    /// <returns>Fallo <see cref="MediatorErrors.Unexpected"/>.</returns>
+    public static TResult Unexpected<TResult>(ILogger logger, Exception exception, Type requestType, Type? handlerType)
+        where TResult : Result
+    {
+        Log(logger, exception, requestType, handlerType);
+
+        return Result.FailureFor<TResult>(Error.Unexpected(MediatorErrors.Unexpected, MediatorErrors.UnexpectedMessage));
     }
 
     private static void Log(ILogger logger, Exception exception, Type requestType, Type? handlerType)

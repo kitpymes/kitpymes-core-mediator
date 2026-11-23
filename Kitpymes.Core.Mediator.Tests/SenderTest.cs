@@ -223,7 +223,7 @@ namespace Kitpymes.Core.Mediator.Tests
             using var provider = TestHost.Build();
             using var scope = provider.CreateScope();
 
-            Assert.AreSame(scope.ServiceProvider.GetRequiredService<ISender>(), scope.ServiceProvider.GetRequiredService<IPublisher>());
+            Assert.AreSame<object>(scope.ServiceProvider.GetRequiredService<ISender>(), scope.ServiceProvider.GetRequiredService<IPublisher>());
             Assert.AreSame(scope.ServiceProvider.GetRequiredService<ISender>(), scope.ServiceProvider.GetRequiredService<ISender>());
         }
 
