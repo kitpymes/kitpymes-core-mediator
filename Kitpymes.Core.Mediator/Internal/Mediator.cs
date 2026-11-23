@@ -46,23 +46,11 @@ internal sealed class Mediator : ISender, IPublisher
 
         var type = command.GetType();
 
-        // Sin lambda: la creación del envoltorio, la resolución y la llamada van dentro del try,
-        // y la captura común se aplica después (ver Pipeline.Complete).
-        Task<TResult>? task = null;
-        Exception? error = null;
-
-        try
-        {
-            task = Wrappers<TResult>.Command(type).HandleAsync(command, _services, cancellationToken);
-        }
-#pragma warning disable CA1031 // Se relanza dentro de Pipeline.Complete, con la captura común.
-        catch (Exception exception)
-#pragma warning restore CA1031
-        {
-            error = exception;
-        }
-
-        return Pipeline.Complete(task, error, type, _logger, cancellationToken);
+        return Pipeline.RunAsync(
+            type,
+            _logger,
+            () => Wrappers<TResult>.Get(typeof(CommandWrapper<,>), type).HandleAsync(command, _services, cancellationToken),
+            cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -73,23 +61,11 @@ internal sealed class Mediator : ISender, IPublisher
 
         var type = query.GetType();
 
-        // Sin lambda: la creación del envoltorio, la resolución y la llamada van dentro del try,
-        // y la captura común se aplica después (ver Pipeline.Complete).
-        Task<TResult>? task = null;
-        Exception? error = null;
-
-        try
-        {
-            task = Wrappers<TResult>.Query(type).HandleAsync(query, _services, cancellationToken);
-        }
-#pragma warning disable CA1031 // Se relanza dentro de Pipeline.Complete, con la captura común.
-        catch (Exception exception)
-#pragma warning restore CA1031
-        {
-            error = exception;
-        }
-
-        return Pipeline.Complete(task, error, type, _logger, cancellationToken);
+        return Pipeline.RunAsync(
+            type,
+            _logger,
+            () => Wrappers<TResult>.Get(typeof(QueryWrapper<,>), type).HandleAsync(query, _services, cancellationToken),
+            cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -118,14 +94,9 @@ internal sealed class Mediator : ISender, IPublisher
     private static class Wrappers<TResult>
         where TResult : Result
     {
-        // Una caché por clase de envoltorio, con el tipo como clave: más barata que una tupla (definición, tipo).
-        private static readonly ConcurrentDictionary<Type, RequestWrapper<TResult>> Commands = new ();
-        private static readonly ConcurrentDictionary<Type, RequestWrapper<TResult>> Queries = new ();
+        private static readonly ConcurrentDictionary<(Type Definition, Type Request), RequestWrapper<TResult>> Cache = new ();
 
-        public static RequestWrapper<TResult> Command(Type request)
-            => Commands.GetOrAdd(request, static type => Create<RequestWrapper<TResult>>(typeof(CommandWrapper<,>).MakeGenericType(type, typeof(TResult))));
-
-        public static RequestWrapper<TResult> Query(Type request)
-            => Queries.GetOrAdd(request, static type => Create<RequestWrapper<TResult>>(typeof(QueryWrapper<,>).MakeGenericType(type, typeof(TResult))));
+        public static RequestWrapper<TResult> Get(Type definition, Type request)
+            => Cache.GetOrAdd((definition, request), key => Create<RequestWrapper<TResult>>(key.Definition.MakeGenericType(key.Request, typeof(TResult))));
     }
 }
