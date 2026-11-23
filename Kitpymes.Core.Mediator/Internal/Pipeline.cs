@@ -22,39 +22,7 @@ using Microsoft.Extensions.Logging;
 internal static class Pipeline
 {
     /// <summary>
-    /// Ejecuta algo dentro de la captura común. Lo usa la publicación; el envío usa <see cref="CompleteAsync"/>, sin lambda.
-    /// </summary>
-    /// <typeparam name="TResult">Tipo del resultado.</typeparam>
-    /// <param name="requestType">Tipo de la petición o notificación (lo único que se registra de ella).</param>
-    /// <param name="logger">Log.</param>
-    /// <param name="run">Lo que se ejecuta. Se llama dentro de la captura: también se captura lo que lance antes de devolver la tarea.</param>
-    /// <param name="cancellationToken">Cancelación de quien llama.</param>
-    /// <returns>Resultado.</returns>
-    public static async Task<TResult> RunAsync<TResult>(Type requestType, ILogger logger, Func<Task<TResult>> run, CancellationToken cancellationToken)
-        where TResult : Result
-    {
-        try
-        {
-            var task = run() ?? throw new InvalidOperationException($"La tubería de {requestType.FullName} devolvió una tarea nula.");
-
-            var result = await task.ConfigureAwait(false);
-
-            return result ?? throw new InvalidOperationException($"La tubería de {requestType.FullName} devolvió un resultado nulo.");
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            // Quien llama pidió cancelar: no espera respuesta. Se mira el token, no el de la excepción,
-            // porque con tokens enlazados no son el mismo.
-            throw;
-        }
-        catch (Exception exception)
-        {
-            return Unexpected<TResult>(logger, exception, requestType, null);
-        }
-    }
-
-    /// <summary>
-    /// Termina dentro de la captura común lo que ya se ha ejecutado.
+    /// Termina dentro de la captura común lo que ya se ha ejecutado (envío y publicación).
     /// </summary>
     /// <remarks>
     /// Camino rápido: si la tarea ya terminó bien y con resultado, se devuelve tal cual, sin máquina de estados ni otra tarea.
