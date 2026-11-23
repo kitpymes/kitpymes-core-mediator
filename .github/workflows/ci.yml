@@ -46,7 +46,8 @@ jobs:
             cat vsthrd110.log; echo "::error::Compila con una tarea descartada sin await: VSTHRD110 no se ejecuta."; exit 1
           fi
           grep -q 'error VSTHRD110' vsthrd110.log || { cat vsthrd110.log; echo "::error::Ha fallado, pero no por VSTHRD110."; exit 1; }
-          grep 'error VSTHRD110' vsthrd110.log | head -1
+          # Sin la palabra "error": el analizador de salida de dotnet lo mostraría como error en GitHub.
+          grep 'error VSTHRD110' vsthrd110.log | head -1 | sed 's/error VSTHRD110/VSTHRD110 (esperado)/'
           echo "VSTHRD110 detectado, como se esperaba."
 
       - name: Tests
