@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="$(KitpymesRoot)docs/props/Common.Build.props" Condition="Exists('$(KitpymesRoot)docs/props/Common.Build.props')" />
+
+  <!--
+    Comparación con MediatR antes de publicar. No se empaqueta ni pasa StyleCop.
+    MediatR 12.x es la última con licencia Apache 2.0: sólo se usa aquí, para medir.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestsProject>true</IsTestsProject>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
+    <SignAssembly>false</SignAssembly>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(KitpymesRoot)Kitpymes.Core.Mediator\Kitpymes.Core.Mediator.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.15.2" />
+    <PackageReference Include="MediatR" Version="12.5.0" />
+  </ItemGroup>
+
+</Project>
