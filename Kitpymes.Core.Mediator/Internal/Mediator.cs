@@ -82,10 +82,13 @@ internal sealed class Mediator : ISender, IPublisher
             null,
             _logger,
             () => NotificationWrappers
-                .GetOrAdd(type, t => (NotificationWrapper)Activator.CreateInstance(typeof(NotificationWrapper<>).MakeGenericType(t))!)
+                .GetOrAdd(type, t => Create<NotificationWrapper>(typeof(NotificationWrapper<>).MakeGenericType(t)))
                 .PublishAsync(notification, _services, _logger, cancellationToken),
             cancellationToken);
     }
+
+    private static T Create<T>(Type type)
+        => (T)(Activator.CreateInstance(type) ?? throw new InvalidOperationException($"No se pudo crear {type.FullName}."));
 
     /// <summary>
     /// Envoltorios por tipo de petición, uno por resultado.
@@ -97,6 +100,6 @@ internal sealed class Mediator : ISender, IPublisher
         private static readonly ConcurrentDictionary<(Type Definition, Type Request), RequestWrapper<TResult>> Cache = new ();
 
         public static RequestWrapper<TResult> Get(Type definition, Type request)
-            => Cache.GetOrAdd((definition, request), key => (RequestWrapper<TResult>)Activator.CreateInstance(key.Definition.MakeGenericType(key.Request, typeof(TResult)))!);
+            => Cache.GetOrAdd((definition, request), key => Create<RequestWrapper<TResult>>(key.Definition.MakeGenericType(key.Request, typeof(TResult))));
     }
 }
