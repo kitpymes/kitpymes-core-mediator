@@ -22,7 +22,6 @@ internal sealed class MediatorCatalog : IMediatorCatalog
     private readonly HashSet<Type> _commands = new ();
     private readonly HashSet<Type> _queries = new ();
     private readonly HashSet<Type> _notifications = new ();
-    private readonly Dictionary<Type, List<Type>> _handlers = new ();
     private readonly HashSet<Type> _handlerServices = new ();
 
     /// <inheritdoc/>
@@ -94,29 +93,13 @@ internal sealed class MediatorCatalog : IMediatorCatalog
     /// </summary>
     /// <param name="message">Petición o notificación que maneja.</param>
     /// <param name="service">Tipo de servicio (interfaz cerrada).</param>
-    /// <param name="handler">Clase del manejador.</param>
-    public void AddHandler(Type message, Type service, Type handler)
+    public void AddHandler(Type message, Type service)
     {
-        if (!_handlers.TryGetValue(message, out var list))
-        {
-            list = new List<Type>();
-            _handlers[message] = list;
-        }
-
-        list.Add(handler);
         _handlerServices.Add(service);
 
         // La petición puede vivir en un ensamblado que no se escanea (p. ej. Contracts): se toma también del manejador.
         AddMessage(message);
     }
-
-    /// <summary>
-    /// Devuelve las clases que manejan una petición o notificación.
-    /// </summary>
-    /// <param name="message">Petición o notificación.</param>
-    /// <returns>Manejadores.</returns>
-    public IReadOnlyList<Type> HandlersOf(Type message)
-        => _handlers.TryGetValue(message, out var list) ? list : (IReadOnlyList<Type>)Array.Empty<Type>();
 
     /// <summary>
     /// Devuelve los tipos de petición que se han registrado como comando y como consulta, o como comando o consulta con dos resultados.

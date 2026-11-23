@@ -82,6 +82,52 @@ namespace Kitpymes.Core.Mediator.Tests
         }
 
         [TestMethod]
+        public void Verify_Passing_WrongConfiguration_Returns_ProblemsInAlphabeticalOrderAndGenericNames()
+        {
+            var message = VerifyMal().Error!.Message;
+
+            StringAssert.Contains(message, "ICommand<Result> y ICommand<Result<Int32>>");
+            Assert.IsTrue(message.IndexOf("BothCommandAndQuery implementa", StringComparison.Ordinal) < message.IndexOf("TwoResultsCommand implementa", StringComparison.Ordinal));
+            Assert.IsTrue(message.IndexOf("NeedsDependencyCommand", StringComparison.Ordinal) < message.IndexOf("OrphanCommand (Result)", StringComparison.Ordinal));
+            Assert.IsTrue(message.IndexOf("OrphanCommand (Result)", StringComparison.Ordinal) < message.IndexOf("TwoResultsCommand (Result)", StringComparison.Ordinal));
+        }
+
+        [TestMethod]
+        public void Verify_Passing_RequestFromUnscannedAssembly_Returns_ItInCatalogWithItsHandler()
+        {
+            var services = new ServiceCollection();
+            services.LoadMediator(o => o.WithAssemblies(typeof(Mal.OrphanCommand).Assembly).WithValidation(false));
+            using var provider = services.BuildServiceProvider();
+
+            var catalog = provider.GetRequiredService<IMediatorCatalog>();
+
+            Assert.IsTrue(catalog.Commands.Contains(typeof(Kitpymes.Core.Mediator.Tests.Contratos.ContractCommand)));
+            Assert.IsFalse(MediatorVerifier.Verify(provider).Error!.Message.Contains("ContractCommand", StringComparison.Ordinal));
+        }
+
+        [TestMethod]
+        public void Verify_Passing_CommandBehaviorWithMissingDependency_Returns_Failure()
+        {
+            using var provider = TestHost.Build(services => services.AddTransient(typeof(ICommandBehavior<,>), typeof(NeedsMissingCommandBehavior<,>)));
+
+            var actual = MediatorVerifier.Verify(provider);
+
+            StringAssert.Contains(actual.Error!.Message, "No se pueden crear los comportamientos de DoCommand (Result)");
+        }
+
+        [TestMethod]
+        public void Verify_Passing_ValidationCheckRegisteredOnlyAsValidationCheck_Returns_SuccessRunningItOnce()
+        {
+            FakeValidationCheck.Calls = 0;
+            using var provider = TestHost.Build(services => services.AddSingleton<IValidationStartupCheck, FakeValidationCheck>(), o => o.WithValidation());
+
+            var actual = MediatorVerifier.Verify(provider);
+
+            Assert.IsTrue(actual.IsSuccess, actual.Error?.Message);
+            Assert.AreEqual(1, FakeValidationCheck.Calls);
+        }
+
+        [TestMethod]
         public void Verify_Passing_SecondHandlerAddedByHand_Returns_FailureTwoHandlers()
         {
             using var provider = TestHost.Build(services => services.AddTransient<ICommandHandler<DoCommand, Result>, DoCommandHandler>());
@@ -244,6 +290,15 @@ namespace Kitpymes.Core.Mediator.Tests
             public NeedsMissingBehavior(Mal.IMissingDependency dependency) => _ = dependency;
 
             public Task<TResult> HandleAsync(TRequest request, NextHandler<TResult> next, CancellationToken cancellationToken) => next();
+        }
+
+        private sealed class NeedsMissingCommandBehavior<TCommand, TResult> : ICommandBehavior<TCommand, TResult>
+            where TCommand : ICommand<TResult>
+            where TResult : Result
+        {
+            public NeedsMissingCommandBehavior(Mal.IMissingDependency dependency) => _ = dependency;
+
+            public Task<TResult> HandleAsync(TCommand command, NextHandler<TResult> next, CancellationToken cancellationToken) => next();
         }
 
         private sealed class LambdaCheck : IStartupCheck

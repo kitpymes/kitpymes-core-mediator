@@ -48,6 +48,12 @@ namespace Kitpymes.Core.Mediator.Tests.Mal
         public Task<Result> HandleAsync(NeedsDependencyCommand command, CancellationToken cancellationToken) => Task.FromResult(Result.Success());
     }
 
+    // Manejador de una petición que vive en un ensamblado que no se escanea (Contratos).
+    public sealed class ContractCommandHandler : ICommandHandler<Kitpymes.Core.Mediator.Tests.Contratos.ContractCommand, Result>
+    {
+        public Task<Result> HandleAsync(Kitpymes.Core.Mediator.Tests.Contratos.ContractCommand command, CancellationToken cancellationToken) => Task.FromResult(Result.Success());
+    }
+
     // Notificación cuyo manejador necesita una dependencia que nadie registra.
     public sealed record BrokenNotification : INotification;
 

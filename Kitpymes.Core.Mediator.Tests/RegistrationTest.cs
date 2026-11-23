@@ -57,6 +57,19 @@ namespace Kitpymes.Core.Mediator.Tests
         }
 
         [TestMethod]
+        public void LoadMediator_Passing_AbstractHandlerAndMarkerInterface_Returns_OnlyConcreteTypes()
+        {
+            var services = new ServiceCollection();
+
+            services.LoadMediator(o => o.WithAssemblies(Ok));
+            using var provider = services.BuildServiceProvider();
+
+            var handler = services.Single(x => x.ServiceType == typeof(IQueryHandler<InheritedHandlerQuery, Result>));
+            Assert.AreEqual(typeof(ConcreteInheritedHandler), handler.ImplementationType);
+            Assert.IsFalse(provider.GetRequiredService<IMediatorCatalog>().Commands.Contains(typeof(IMarkerCommand)));
+        }
+
+        [TestMethod]
         public void LoadMediator_Passing_WithoutStartupVerification_Returns_NoHostedService()
         {
             var services = new ServiceCollection();
@@ -141,7 +154,7 @@ namespace Kitpymes.Core.Mediator.Tests
             var catalog = provider.GetRequiredService<IMediatorCatalog>();
 
             CollectionAssert.AreEquivalent(new[] { typeof(DoCommand), typeof(PingCommand) }, catalog.Commands.ToArray());
-            CollectionAssert.AreEquivalent(new[] { typeof(GetNumberQuery), typeof(GetTextQuery), typeof(UsesAsyncDisposableQuery) }, catalog.Queries.ToArray());
+            CollectionAssert.AreEquivalent(new[] { typeof(GetNumberQuery), typeof(GetTextQuery), typeof(UsesAsyncDisposableQuery), typeof(InheritedHandlerQuery) }, catalog.Queries.ToArray());
             CollectionAssert.AreEquivalent(
                 new[] { typeof(SomethingHappened), typeof(SomethingDerivedHappened), typeof(NobodyListens), typeof(Pinged) },
                 catalog.Notifications.ToArray());

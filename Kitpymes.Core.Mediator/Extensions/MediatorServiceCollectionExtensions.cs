@@ -114,7 +114,7 @@ public static class MediatorServiceCollectionExtensions
                 if (definition == typeof(ICommandHandler<,>) || definition == typeof(IQueryHandler<,>) || definition == typeof(INotificationHandler<>))
                 {
                     services.TryAddEnumerable(ServiceDescriptor.Transient(contract, type));
-                    catalog.AddHandler(contract.GetGenericArguments()[0], contract, type);
+                    catalog.AddHandler(contract.GetGenericArguments()[0], contract);
                 }
             }
         }
