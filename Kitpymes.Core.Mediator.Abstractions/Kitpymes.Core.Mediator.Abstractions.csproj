@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="$(KitpymesRoot)docs/props/Common.Build.props" Condition="Exists('$(KitpymesRoot)docs/props/Common.Build.props')" />
+  <Import Project="$(KitpymesRoot)docs/props/Pack.Build.props" Condition="Exists('$(KitpymesRoot)docs/props/Pack.Build.props')" />
+
+  <PropertyGroup>
+    <Title>Kitpymes.Core.Mediator.Abstractions</Title>
+    <Description>Contratos del mediador Kitpymes: comandos, consultas y notificaciones con resultados Result, sus manejadores, comportamientos y comprobaciones de arranque. Sin implementación.</Description>
+    <PackageTags>Mediator, Mediador, CQRS, Command, Query, Notification, Abstractions, Kitpymes</PackageTags>
+  </PropertyGroup>
+
+  <!-- Los contratos los usan proyectos de dominio: no se arrastra el framework de ASP.NET Core. -->
+  <ItemGroup>
+    <FrameworkReference Remove="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Kitpymes.Core.Results" Version="1.1.1" />
+  </ItemGroup>
+
+</Project>
