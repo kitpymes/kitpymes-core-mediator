@@ -24,21 +24,20 @@ internal static class Pipeline
     /// </summary>
     /// <typeparam name="TResult">Tipo del resultado.</typeparam>
     /// <param name="requestType">Tipo de la petición o notificación (lo único que se registra de ella).</param>
-    /// <param name="handlerType">Tipo del manejador que falló, si se sabe.</param>
     /// <param name="logger">Log.</param>
     /// <param name="run">Lo que se ejecuta. Se llama dentro de la captura: también se captura lo que lance antes de devolver la tarea.</param>
     /// <param name="cancellationToken">Cancelación de quien llama.</param>
     /// <returns>Resultado.</returns>
-    public static async Task<TResult> RunAsync<TResult>(Type requestType, Type? handlerType, ILogger logger, Func<Task<TResult>> run, CancellationToken cancellationToken)
+    public static async Task<TResult> RunAsync<TResult>(Type requestType, ILogger logger, Func<Task<TResult>> run, CancellationToken cancellationToken)
         where TResult : Result
     {
         try
         {
-            var task = run() ?? throw new InvalidOperationException($"{handlerType?.FullName ?? requestType.FullName} devolvió una tarea nula.");
+            var task = run() ?? throw new InvalidOperationException($"La tubería de {requestType.FullName} devolvió una tarea nula.");
 
             var result = await task.ConfigureAwait(false);
 
-            return result ?? throw new InvalidOperationException($"{handlerType?.FullName ?? requestType.FullName} devolvió un resultado nulo.");
+            return result ?? throw new InvalidOperationException($"La tubería de {requestType.FullName} devolvió un resultado nulo.");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -48,7 +47,7 @@ internal static class Pipeline
         }
         catch (Exception exception)
         {
-            return Unexpected<TResult>(logger, exception, requestType, handlerType);
+            return Unexpected<TResult>(logger, exception, requestType, null);
         }
     }
 
