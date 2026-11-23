@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="$(KitpymesRoot)docs/props/Common.Build.props" Condition="Exists('$(KitpymesRoot)docs/props/Common.Build.props')" />
+
+  <ItemGroup>
+    <ProjectReference Include="$(KitpymesRoot)Kitpymes.Core.Mediator\Kitpymes.Core.Mediator.csproj" />
+    <ProjectReference Include="$(KitpymesRoot)tests\Kitpymes.Core.Mediator.Tests.Ok\Kitpymes.Core.Mediator.Tests.Ok.csproj" />
+    <ProjectReference Include="$(KitpymesRoot)tests\Kitpymes.Core.Mediator.Tests.Mal\Kitpymes.Core.Mediator.Tests.Mal.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.11.1" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.11.1" />
+    <PackageReference Include="coverlet.collector" Version="10.1.1" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+  </ItemGroup>
+
+</Project>

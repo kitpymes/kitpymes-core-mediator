@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="$(KitpymesRoot)docs/props/Common.Build.props" Condition="Exists('$(KitpymesRoot)docs/props/Common.Build.props')" />
+
+  <!-- Proyecto de apoyo de los tests: no se empaqueta ni pasa StyleCop. -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestsProject>true</IsTestsProject>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(KitpymesRoot)Kitpymes.Core.Mediator.Abstractions\Kitpymes.Core.Mediator.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>
