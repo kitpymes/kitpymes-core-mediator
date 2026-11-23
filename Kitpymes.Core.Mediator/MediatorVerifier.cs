@@ -10,6 +10,8 @@ namespace Kitpymes.Core.Mediator;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Kitpymes.Core.Mediator.Abstractions;
 using Kitpymes.Core.Mediator.Internal;
 using Kitpymes.Core.Results;
@@ -33,8 +35,9 @@ public static class MediatorVerifier
     /// </list>
     /// </remarks>
     /// <param name="provider">Proveedor de servicios ya construido.</param>
+    /// <param name="cancellationToken">Cancelación.</param>
     /// <returns>Éxito, o un fallo con una línea por problema.</returns>
-    public static Result Verify(IServiceProvider provider)
+    public static async Task<Result> VerifyAsync(IServiceProvider provider, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(provider);
 
@@ -75,13 +78,13 @@ public static class MediatorVerifier
                 TryResolve(services, service, $"los manejadores de {MediatorCatalog.Name(service.GetGenericArguments()[0])}", problems);
             }
 
-            CheckStartupChecks(services, catalog, problems);
+            await CheckStartupChecksAsync(services, catalog, problems, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             try
             {
-                scope.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                await scope.DisposeAsync().ConfigureAwait(false);
             }
 #pragma warning disable CA1031 // Un fallo al cerrar el ámbito es un problema más del informe.
             catch (Exception exception)
@@ -132,7 +135,7 @@ public static class MediatorVerifier
         }
     }
 
-    private static void CheckStartupChecks(IServiceProvider services, MediatorCatalog catalog, List<string> problems)
+    private static async Task CheckStartupChecksAsync(IServiceProvider services, MediatorCatalog catalog, List<string> problems, CancellationToken cancellationToken)
     {
         // Una comprobación por tipo, aunque esté registrada como IStartupCheck y como IValidationStartupCheck.
         var checks = new List<IStartupCheck>();
@@ -156,7 +159,8 @@ public static class MediatorVerifier
         {
             try
             {
-                var result = check.Check(catalog, services);
+                var task = check.CheckAsync(catalog, services, cancellationToken);
+                var result = task is null ? null : await task.ConfigureAwait(false);
 
                 if (result is null)
                 {

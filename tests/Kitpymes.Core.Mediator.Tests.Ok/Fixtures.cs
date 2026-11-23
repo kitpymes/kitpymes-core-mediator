@@ -270,10 +270,10 @@ namespace Kitpymes.Core.Mediator.Tests.Ok
     {
         public static int Calls { get; set; }
 
-        public Result Check(IMediatorCatalog catalog, IServiceProvider services)
+        public Task<Result> CheckAsync(IMediatorCatalog catalog, IServiceProvider services, CancellationToken cancellationToken)
         {
             Calls++;
-            return Result.Success();
+            return Task.FromResult(Result.Success());
         }
     }
 }

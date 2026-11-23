@@ -9,6 +9,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Kitpymes.Core.Mediator.Tests
 {
@@ -70,13 +71,14 @@ namespace Kitpymes.Core.Mediator.Tests
         }
 
         [TestMethod]
-        public void LoadMediator_Passing_WithoutStartupVerification_Returns_NoHostedService()
+        public void LoadMediator_Passing_WithoutStartupVerification_Returns_OnlyWarningHostedService()
         {
             var services = new ServiceCollection();
 
             services.LoadMediator(o => o.WithAssemblies(Ok).WithStartupVerification(false));
 
-            Assert.IsFalse(services.Any(x => x.ServiceType == typeof(IHostedService)));
+            // Sólo el aviso: la comprobación no se registra.
+            Assert.AreEqual("MediatorStartupWarning", services.Single(x => x.ServiceType == typeof(IHostedService)).ImplementationType!.Name);
         }
 
         [TestMethod]
@@ -90,7 +92,7 @@ namespace Kitpymes.Core.Mediator.Tests
         }
 
         [TestMethod]
-        public void LoadMediator_Passing_Settings_Returns_ValidationFlagInCatalog()
+        public async Task LoadMediator_Passing_Settings_Returns_ValidationFlagInCatalog()
         {
             var settings = new MediatorSettings { Validation = false, StartupVerification = false };
             settings.Assemblies.Add(Ok);
@@ -101,7 +103,7 @@ namespace Kitpymes.Core.Mediator.Tests
             services.LoadMediator(settings);
             using var provider = services.BuildServiceProvider();
 
-            Assert.IsTrue(MediatorVerifier.Verify(provider).IsSuccess);
+            Assert.IsTrue((await MediatorVerifier.VerifyAsync(provider)).IsSuccess);
         }
 
         [TestMethod]

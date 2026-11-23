@@ -44,9 +44,27 @@ internal sealed class MediatorCatalog : IMediatorCatalog
     public IReadOnlyCollection<Type> HandlerServices => _handlerServices;
 
     /// <summary>
-    /// Obtiene o establece un valor que indica si se exige la comprobación de validación.
+    /// Obtiene un valor que indica si se exige la comprobación de validación.
     /// </summary>
-    public bool RequireValidation { get; set; } = true;
+    public bool RequireValidation { get; private set; }
+
+    /// <summary>
+    /// Pide la comprobación de validación. Basta con que una llamada a LoadMediator la pida: una librería que la quite
+    /// no la apaga para toda la aplicación.
+    /// </summary>
+    /// <param name="required">Si esta llamada la pide.</param>
+    public void Require(bool required) => RequireValidation |= required;
+
+    /// <summary>
+    /// Obtiene un valor que indica si se comprueba la configuración al arrancar el host.
+    /// </summary>
+    public bool VerifyAtStartup { get; private set; }
+
+    /// <summary>
+    /// Pide la comprobación al arrancar. Basta con que una llamada a LoadMediator la pida.
+    /// </summary>
+    /// <param name="verify">Si esta llamada la pide.</param>
+    public void RequireStartupVerification(bool verify) => VerifyAtStartup |= verify;
 
     /// <summary>
     /// Nombre legible de un tipo, con sus argumentos genéricos.

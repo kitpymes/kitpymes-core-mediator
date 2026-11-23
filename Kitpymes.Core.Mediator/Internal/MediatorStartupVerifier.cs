@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 
 /// <summary>
-/// Ejecuta <see cref="MediatorVerifier.Verify(IServiceProvider)"/> al arrancar el host: si falla, la aplicación no arranca.
+/// Ejecuta <see cref="MediatorVerifier.VerifyAsync(IServiceProvider, CancellationToken)"/> al arrancar el host: si falla, la aplicación no arranca.
 /// </summary>
 internal sealed class MediatorStartupVerifier : IHostedService
 {
@@ -26,13 +26,14 @@ internal sealed class MediatorStartupVerifier : IHostedService
     public MediatorStartupVerifier(IServiceProvider services) => _services = services;
 
     /// <inheritdoc/>
-    public Task StartAsync(CancellationToken cancellationToken)
+    public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var result = MediatorVerifier.Verify(_services);
+        var result = await MediatorVerifier.VerifyAsync(_services, cancellationToken).ConfigureAwait(false);
 
-        return result.IsFailure
-            ? throw new InvalidOperationException(result.Error.Message)
-            : Task.CompletedTask;
+        if (result.IsFailure)
+        {
+            throw new InvalidOperationException(result.Error.Message);
+        }
     }
 
     /// <inheritdoc/>
